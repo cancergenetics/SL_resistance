@@ -7,7 +7,7 @@ Cite as : []
 ## Data Sources
 
 | Folder                         | File                          | Description                                                                 | Source |
-|-----------------------|-----------------------|-----------------------------------------------------------------------------|--------|
+|--------------------------------|-------------------------------|-----------------------------------------------------------------------------|--------|
 | `input_data/HGNC`              | `hgnc_complete_set.txt`     | Gene symbol mapping to HGNC, Ensembl, and Entrez identifiers                | [HGNC](https://www.genenames.org/download/custom/) |
 | `input_data/1_resistance_screens` | `awwad_ARID1A_ATR_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor ARID1A-ATR SL pair from Awwad et al. (2025) | [Awwad et al. (2025)](https://www.nature.com/articles/s41467-024-55637-5) (Supp. Data-1) |
 | `input_data/1_resistance_screens` | `dunn_PTEN_AKT_screen.xlsx`| CRISPR screen results with gene symbols and resistance status for PTEN-AKT SL pair from Dunn et al. (2022) | [Dunn et al. (2022)](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table-1) |
@@ -22,6 +22,26 @@ Cite as : []
 | `input_data/1_resistance_screens` | `wang_KRAS_MEK_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor KRAS-MEK1/2 SL pair from Wang et al. (2018) | [Wang et al. (2017)](https://www.sciencedirect.com/science/article/pii/S2211124717300682?via%3Dihub) (Supp. Table-1) |
 | `input_data/1_resistance_screens` | `yu_KRAS_MEK_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor KRAS-MEK1/2 SL pair from Yu et al. (2022) | [Yu et al. (2022)](https://www.nature.com/articles/s41388-021-02077-w) (Supp. Table-1) |
 | `input_data/1_resistance_screens` | `zimmermann_BRCA1_PARP1_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor BRCA1-PARP1 SL pair from Zimmermann et al. (2018) | [Zimmermann et al. (2018)](https://www.nature.com/articles/s41586-018-0291-z) (Supp. Table-1) |
+
+
+## Data Sources
+
+| Category | Path | File | SL Pair | Description | Reference |
+|---------|------|------|--------|-------------|-----------|
+| Gene annotation | `input_data/HGNC` | `hgnc_complete_set.txt` | — | Mapping of gene symbols to HGNC, Ensembl, and Entrez identifiers | [HGNC](https://www.genenames.org/download/custom/) |
+| CRISPR screen | `input_data/1_resistance_screens` | `awwad_ARID1A_ATR_screen.xlsx` | ARID1A–ATR | CRISPR resistance screen with gene-level resistance annotations | [Awwad et al., 2025](https://www.nature.com/articles/s41467-024-55637-5) (Supp. Data 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_AKT_screen.xlsx` | PTEN–AKT | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_PIK3CB_screen.xlsx` | PTEN–PIK3CB | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `hayes_NRAS_CDK4_6_screen.xlsx` | NRAS–CDK4/6 | CRISPR resistance screen with gene-level resistance annotations | [Hayes et al., 2019](https://aacrjournals.org/cancerres/article/79/9/2352/640672) (Supp. Table 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `hayes_NRAS_MEK_screen.xlsx` | NRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Hayes et al., 2019](https://aacrjournals.org/cancerres/article/79/9/2352/640672) (Supp. Table 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `krall_BRAF_MEK_screen.xlsx` | BRAF–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Krall et al., 2017](https://elifesciences.org/articles/18970) (Supp. File 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `krall_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Krall et al., 2017](https://elifesciences.org/articles/18970) (Supp. File 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `krall_NRAS_MEK_screen.xlsx` | NRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Krall et al., 2017](https://elifesciences.org/articles/18970) (Supp. File 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `llorca_ARID1A_ATR_screen.xlsx` | ARID1A–ATR | CRISPR resistance screen with gene-level resistance annotations | [Llorca-Cardenosa et al., 2022](https://aacrjournals.org/cancerres/article/82/21/3962/709958) (Supp. Data 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `noordermeer_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | CRISPR resistance screen with gene-level resistance annotations | [Noordermeer et al., 2018](https://www.nature.com/articles/s41586-018-0340-7) (Supp. Table 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `wang_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Wang et al., 2017](https://www.sciencedirect.com/science/article/pii/S2211124717300682) (Supp. Table 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `yu_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Yu et al., 2022](https://www.nature.com/articles/s41388-021-02077-w) (Supp. Table 1) |
+| CRISPR screen | `input_data/1_resistance_screens` | `zimmermann_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | CRISPR resistance screen with gene-level resistance annotations | [Zimmermann et al., 2018](https://www.nature.com/articles/s41586-018-0291-z) (Supp. Table 1) |
 
 
 ### Data processing notebooks overview:
