@@ -19,7 +19,9 @@ Cite as : []
 | `input_data/1_resistance_screens` | `krall_NRAS_MEK_screen.xlsx`| CRISPR screen results with gene symbols and resistance status for NRAS-MEK1/2 SL pair from Krall et al. (2017) | [Krall et al. (2017)](https://elifesciences.org/articles/18970) (Supp. File-1) |
 | `input_data/1_resistance_screens` | `llorca_ARID1A_ATR_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor ARID1A-ATR SL pair from Llorca-Cardenosa et al. (2022) | [Llorca-Cardenosa et al. (2022)](https://aacrjournals.org/cancerres/article/82/21/3962/709958/SMG8-SMG9-Heterodimer-Loss-Modulates-SMG1-Kinase) (Supp. Data-1) |
 | `input_data/1_resistance_screens` | `noordermeer_BRCA1_PARP1_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor BRCA1-PARP1 SL pair from Noordermeer et al. (2018) | [Noordermeer et al. (2018)](https://www.nature.com/articles/s41586-018-0340-7) (Supp. Table-1) |
-| `input_data/1_resistance_screens` | `noordermeer_BRCA1_PARP1_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor BRCA1-PARP1 SL pair from Noordermeer et al. (2018) | [Noordermeer et al. (2018)](https://www.nature.com/articles/s41586-018-0340-7) (Supp. Table-1) |
+| `input_data/1_resistance_screens` | `wang_KRAS_MEK_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor KRAS-MEK1/2 SL pair from Wang et al. (2018) | [Wang et al. (2017)](https://www.sciencedirect.com/science/article/pii/S2211124717300682?via%3Dihub) (Supp. Table-1) |
+| `input_data/1_resistance_screens` | `yu_KRAS_MEK_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor KRAS-MEK1/2 SL pair from Yu et al. (2022) | [Yu et al. (2022)](https://www.nature.com/articles/s41388-021-02077-w) (Supp. Table-1) |
+| `input_data/1_resistance_screens` | `zimmermann_BRCA1_PARP1_screen.xlsx`| CRISPR screen results with gene symbols and resistance statusor BRCA1-PARP1 SL pair from Zimmermann et al. (2018) | [Zimmermann et al. (2018)](https://www.nature.com/articles/s41586-018-0291-z) (Supp. Table-1) |
 
 
 ### Data processing notebooks overview:
