@@ -14,6 +14,7 @@ Cite as : []
 | `input_data/1_resistance_screens` | `dunn_PTEN__PIK3CB_screen.xlsx` | CRISPR screen results with gene symbols and resistance status for PTEN-PIK3CB SL pair from Dunn et al. (2022) | [Dunn et al. (2022)](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table-1) |
 | `input_data/1_resistance_screens` | `hayes_NRAS_CDK4_6_screen.xlsx` | CRISPR screen results with gene symbols and resistance status for NRAS-CDK4/6 SL pair from Hayes et al. (2019) | [Hayes et al. (2019)](https://aacrjournals.org/cancerres/article/79/9/2352/640672/A-Functional-Landscape-of-Resistance-to-MEK1-2-and) (Supp. Table-1) |
 | `input_data/1_resistance_screens` | `hayes_NRAS_MEK_screen.xlsx` | CRISPR screen results with gene symbols and resistance status for NRAS-MEK1/2 SL pair from Hayes et al. (2019) | [Hayes et al. (2019)](https://aacrjournals.org/cancerres/article/79/9/2352/640672/A-Functional-Landscape-of-Resistance-to-MEK1-2-and) (Supp. Table-1) |
+| `input_data/1_resistance_screens` | `krall_BRAF_MEK_screen.xlsx` | CRISPR screen results with gene symbols and resistance status for BRAF-MEK1/2 SL pair from Krall et al. (2017) | [Krall et al. (2017)](https://elifesciences.org/articles/18970) (Supp. File-1) |
 
 
 ### Data processing notebooks overview:
@@ -21,5 +22,5 @@ These notebooks process raw/third party data for use in the analysis.
 
 | Notebook                               | Brief description                                        |
 |:---------------------------------------|:---------------------------------------------------------|
-| 1_resistance_screen_data_preprocessing     | Preprocessing, mapping and annotation of CRISPR resistance screen with HGNC symbol, Entrez ID, Ensembl ID. |
+| 1_resistance_screen_data_preprocessing     | Preprocessing, mapping, and annotation of gene symbols in CRISPR resistance screens using HGNC IDs, Entrez IDs, and Ensembl IDs. |
 
