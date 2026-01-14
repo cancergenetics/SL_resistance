@@ -9,6 +9,8 @@ Cite as : []
 | Category | Path | File | SL Pair | Description | Reference |
 |---------|------|------|--------|-------------|-----------|
 | Gene annotation | `input_data/HGNC` | `hgnc_complete_set.txt` | — | Mapping of gene symbols to HGNC, Ensembl, and Entrez identifiers | [HGNC](https://www.genenames.org/download/custom/) |
+| Protein-protein interaction | `input_data/STRING` | `9606.protein.info.v12.0.txt` | — | list of STRING proteins incl. their display names and descriptions | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
+| Protein-protein interaction | `input_data/STRING` | `9606.protein.links.detailed.v12.0.txt` | — | protein network data (full network, incl. subscores per channel) | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
 | CRISPR screen | `input_data/1_resistance_screens` | `awwad_ARID1A_ATR_screen.xlsx` | ARID1A–ATR | CRISPR resistance screen with gene-level resistance annotations | [Awwad et al., 2025](https://www.nature.com/articles/s41467-024-55637-5) (Supp. Data 1) |
 | CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_AKT_screen.xlsx` | PTEN–AKT | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
 | CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_PIK3CB_screen.xlsx` | PTEN–PIK3CB | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
@@ -24,9 +26,12 @@ Cite as : []
 | CRISPR screen | `input_data/1_resistance_screens` | `zimmermann_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | CRISPR resistance screen with gene-level resistance annotations | [Zimmermann et al., 2018](https://www.nature.com/articles/s41586-018-0291-z) (Supp. Table 1) |
 
 
+
+
 ## Data processing notebooks overview:
 These notebooks process raw/third party data for use in the analysis.
 
 | Notebook                                  | Figures | Brief description |
 |-------------------------------------------|---------|-------------------|
 | `1_resistance_screen_data_preprocessing.ipynb`  | Fig. S1 | Preprocessing, mapping, and annotation of gene symbols in CRISPR resistance screens using HGNC, Entrez, and Ensembl identifiers. |
+| `2_STRING_interaction_overlap_analysis.ipynb`  | NA | des |
