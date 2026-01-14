@@ -27,7 +27,7 @@ Cite as : []
 ### Data processing notebooks overview:
 These notebooks process raw/third party data for use in the analysis.
 
-| Notebook                               | Brief description                                        |
+| Notebook                               | Figures                                     | Brief description                                        |
 |:---------------------------------------|:---------------------------------------------------------|
-| 1_resistance_screen_data_preprocessing     | Preprocessing, mapping, and annotation of gene symbols in CRISPR resistance screens using HGNC IDs, Entrez IDs, and Ensembl IDs. |
+| 1_resistance_screen_data_preprocessing     | Fig S1 | Preprocessing, mapping, and annotation of gene symbols in CRISPR resistance screens using HGNC IDs, Entrez IDs, and Ensembl IDs. |
 
