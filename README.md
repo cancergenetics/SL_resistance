@@ -24,7 +24,7 @@ Cite as : []
 | CRISPR screen | `input_data/1_resistance_screens` | `zimmermann_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | CRISPR resistance screen with gene-level resistance annotations | [Zimmermann et al., 2018](https://www.nature.com/articles/s41586-018-0291-z) (Supp. Table 1) |
 
 
-### Data processing notebooks overview:
+## Data processing notebooks overview:
 These notebooks process raw/third party data for use in the analysis.
 
 | Notebook                                  | Figures | Brief description |
