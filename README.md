@@ -18,6 +18,7 @@ These notebooks process raw/third party data for use in the analysis.
 | `7_feature_extraction_ppi_based.ipynb`  | NA | PPI-based features extraction for resistance prediction.|
 | `8_feature_extraction_expression_based.ipynb`  | NA | Expression based features extraction for resistance prediction.|
 | `9_feature_extraction_essentiality_based.ipynb`  | NA | Essentiality based features extraction for resistance prediction.|
+| `10_feature_merge.ipynb`  | NA | Merging and harmonization of features for machine learning–ready datasets.|
 
 
 
