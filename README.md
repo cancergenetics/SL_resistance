@@ -15,7 +15,7 @@ These notebooks process raw/third party data for use in the analysis.
 | `4_interaction_overlap_graphs.ipynb`  | Fig. 1B, Fig.2, Fig.S2-S3 | Visualization of overlapping analysis of protein-protein interaction partner enrichment of SL pairs among resistance/non-resistance genes across CRISPR screens |
 | `5_randomness_analysis.ipynb`  | Fig.S4 | Random network analysis of resistance gene connectivity to synthetic lethal partners using degree-matched STRING and BioGRID PPI networks.|
 | `6_ML_data_preprocessing.ipynb`  | NA | Data preprocessing to generate a machine learning–ready dataset by combining CRISPR screen datasets for predictive modeling.|
-
+| `7_feature_extraction_ppi_based.ipynb`  | NA | PPI-based features extraction for resistance prediction.|
 
 
 
@@ -27,7 +27,9 @@ These notebooks process raw/third party data for use in the analysis.
 | Gene annotation | `input_data/HGNC` | `hgnc_complete_set.txt` | — | Mapping of gene symbols to HGNC, Ensembl, and Entrez identifiers | [HGNC](https://www.genenames.org/download/custom/) |
 | Protein-protein interaction | `input_data/STRING` | `9606.protein.info.v12.0.txt` | — | list of STRING proteins incl. their display names and descriptions (downloaded on December 7, 2023, version 12.0) | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
 | Protein-protein interaction | `input_data/STRING` | `9606.protein.links.detailed.v12.0.txt` | — | STRING protein network data full network, incl. subscores per channel (downloaded on December 7, 2023, version 12.0) | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
-| Protein-protein interaction | `input_data/BIOGRID` | `BIOGRID-MV-Physical-4.4.229.tab3.txt` | — | BIOGRID Physical protein interaction network data (downloaded on December 29, 2023, version 4.4.229) | [BIOGRID](https://downloads.thebiogrid.org/BioGRID/Release-Archive/BIOGRID-4.4.229/) |
+| Protein-protein interaction | `input_data/BIOGRID` | `BIOGRID-MV-Physical-4.4.229.tab3.txt` | — | BIOGRID Physical protein interaction network data (downloaded on December 29, 2023, version 4.4.229) | [BIOGRID_Physical](https://downloads.thebiogrid.org/BioGRID/Release-Archive/BIOGRID-4.4.229/) |
+| Protein-protein interaction | `input_data/BIOGRID` | `BIOGRID-ALL-4.4.241.tab3.txt` | — | BIOGRID protein interaction network data (downloaded on November 28, 2024, version 4.4.241) | [BIOGRID](https://downloads.thebiogrid.org/BioGRID/Release-Archive/BIOGRID-4.4.229/) |
+| Gene annotation | `input_data/Cancer_Gene_Census` | `Cancer_gene_census_data.csv` | — | BIOGRID protein interaction network data (downloaded on November 28, 2024, version 4.4.241) | [CGC](https://cancer.sanger.ac.uk/cosmic/census) |
 | CRISPR screen | `input_data/1_resistance_screens` | `awwad_ARID1A_ATR_screen.xlsx` | ARID1A–ATR | CRISPR resistance screen with gene-level resistance annotations | [Awwad et al., 2025](https://www.nature.com/articles/s41467-024-55637-5) (Supp. Data 1) |
 | CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_AKT_screen.xlsx` | PTEN–AKT | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
 | CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_PIK3CB_screen.xlsx` | PTEN–PIK3CB | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
