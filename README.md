@@ -4,6 +4,17 @@ Data processing and analysis code for the paper of the same name, published in :
 
 Cite as : []
 
+## Data processing notebooks overview:
+These notebooks process raw/third party data for use in the analysis.
+
+| Notebook                                  | Figures | Brief description |
+|-------------------------------------------|---------|-------------------|
+| `1_resistance_screen_data_preprocessing.ipynb`  | Fig. S1 | Preprocessing, mapping, and annotation of gene symbols in CRISPR resistance screens using HGNC, Entrez, and Ensembl identifiers. |
+| `2_STRING_interaction_overlap_analysis.ipynb`  | NA | Overlapping analysis of protein-protein interaction partners of SL pairs and resistance/non-resistance genes in STRING (medium confidence) database |
+| `3_BIOGRID_interaction_overlap_analysis.ipynb`  | NA | Overlapping analysis of protein-protein interaction partners of SL pairs and resistance/non-resistance genes in BIOGRID physical database |
+| `4_interaction_overlap_graphs.ipynb`  | Fig. 1B, Fig.2, Fig.S2-S3 | Visualization of overlapping analysis of protein-protein interaction partner enrichment of SL pairs among resistance/non-resistance genes across CRISPR screens |
+
+
 ## Data Sources
 
 | Category | Path | File | SL Pair | Description | Reference |
@@ -29,12 +40,3 @@ Cite as : []
 
 
 
-## Data processing notebooks overview:
-These notebooks process raw/third party data for use in the analysis.
-
-| Notebook                                  | Figures | Brief description |
-|-------------------------------------------|---------|-------------------|
-| `1_resistance_screen_data_preprocessing.ipynb`  | Fig. S1 | Preprocessing, mapping, and annotation of gene symbols in CRISPR resistance screens using HGNC, Entrez, and Ensembl identifiers. |
-| `2_STRING_interaction_overlap_analysis.ipynb`  | NA | Overlapping analysis of protein-protein interaction partners of SL pairs and resistance/non-resistance genes in STRING (medium confidence) database |
-| `3_BIOGRID_interaction_overlap_analysis.ipynb`  | NA | Overlapping analysis of protein-protein interaction partners of SL pairs and resistance/non-resistance genes in BIOGRID physical database |
-| `4_interaction_overlap_graphs.ipynb`  | Fig. 1B, Fig.2, Fig.S2-S3 | Visualization of overlapping analysis of protein-protein interaction partner enrichment of SL pairs among resistance/non-resistance genes across CRISPR screens |
