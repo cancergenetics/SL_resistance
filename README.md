@@ -14,6 +14,7 @@ These notebooks process raw/third party data for use in the analysis.
 | `3_BIOGRID_interaction_overlap_analysis.ipynb`  | NA | Overlapping analysis of protein-protein interaction partners of SL pairs and resistance/non-resistance genes in BIOGRID physical database |
 | `4_interaction_overlap_graphs.ipynb`  | Fig. 1B, Fig.2, Fig.S2-S3 | Visualization of overlapping analysis of protein-protein interaction partner enrichment of SL pairs among resistance/non-resistance genes across CRISPR screens |
 | `5_randomness_analysis.ipynb`  | Fig.S4 | Random network analysis of resistance gene connectivity to synthetic lethal partners using degree-matched STRING and BioGRID PPI networks.|
+| `6_ML_data_preprocessing.ipynb`  | NA | Random network analysis of resistance gene connectivity to synthetic lethal partners using degree-matched STRING and BioGRID PPI networks.|
 
 
 
