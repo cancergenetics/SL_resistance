@@ -20,6 +20,7 @@ These notebooks process raw/third party data for use in the analysis.
 | `9_feature_extraction_essentiality_based.ipynb`  | NA | Essentiality based features extraction for resistance prediction.|
 | `10_feature_merge.ipynb`  | NA | Merging all features for machine learning–ready datasets.|
 | `11_ML.ipynb`  | Fig.4, Fig.5, Fig.6A, Fig.S5-S6 | Machine learning model traininig and performance evaluation.|
+| `12_causal_mutation_analysis.ipynb`  | Fig.6B | Empirical top-k ranking analysis of the model's ability to prioritize causal resistance genes among mutated candidates.|
 
 
 ## Environment
