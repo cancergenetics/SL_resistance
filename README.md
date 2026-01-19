@@ -34,7 +34,7 @@ conda env create -f environment.yml
 conda activate predicting_resistance_sl
 ```
 
-Jupyter notebooks need to executed according to directory numbering (1_ → 11_).
+Jupyter notebooks need to executed according to directory numbering (1_ → 12_).
 
 ## Data Sources
 
