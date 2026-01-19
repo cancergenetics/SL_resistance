@@ -1,6 +1,6 @@
 # Predicting Resistance to Synthetic Lethal (SL) Therapies in Cancer	
 
-Data processing and analysis code for the paper of the same name, published in : Genome Medicine
+This repository contains jupyter notebooks and files for data processing and analysis code for the paper of the same name, published in : Genome Medicine
 
 Cite as : []
 
