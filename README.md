@@ -22,7 +22,18 @@ These notebooks process raw/third party data for use in the analysis.
 | `11_ML.ipynb`  | Fig.4, Fig.5, Fig.6A, Fig.S5-S6 | Machine learning model traininig and performance evaluation.|
 
 
+## Environment
 
+The code was developed and tested using a Conda environment with **Python 3.12**.
+
+To recreate the environment, run:
+
+```bash
+conda env create -f environment.yml
+conda activate predicting_resistance_sl
+```
+
+Jupyter notebooks need to executed according to directory numbering (1_ → 11_).
 
 ## Data Sources
 
