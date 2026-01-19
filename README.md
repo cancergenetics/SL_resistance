@@ -15,9 +15,9 @@ These notebooks process raw/third party data for use in the analysis.
 | `4_interaction_overlap_graphs.ipynb`  | Fig. 1B, Fig.2, Fig.S2-S3 | Visualization of overlapping analysis of protein-protein interaction partner enrichment of SL pairs among resistance/non-resistance genes across CRISPR screens |
 | `5_randomness_analysis.ipynb`  | Fig.S4 | Random network analysis of resistance gene connectivity to synthetic lethal partners using degree-matched STRING and BioGRID PPI networks.|
 | `6_ML_data_preprocessing.ipynb`  | NA | Data preprocessing to generate a machine learning–ready dataset by combining CRISPR screen datasets for predictive modeling.|
-| `7_feature_extraction_ppi_based.ipynb`  | NA | PPI-based features extraction for resistance prediction.|
-| `8_feature_extraction_expression_based.ipynb`  | NA | Expression based features extraction for resistance prediction.|
-| `9_feature_extraction_essentiality_based.ipynb`  | NA | Essentiality based features extraction for resistance prediction.|
+| `7_feature_extraction_ppi_based.ipynb`  | NA | PPI-based features extraction for ML model.|
+| `8_feature_extraction_expression_based.ipynb`  | NA | Expression based features extraction for ML model.|
+| `9_feature_extraction_essentiality_based.ipynb`  | NA | Essentiality based features extraction for ML model.|
 | `10_feature_merge.ipynb`  | NA | Merging all features for machine learning–ready datasets.|
 | `11_ML.ipynb`  | Fig.4, Fig.5, Fig.6A, Fig.S5-S6 | Machine learning model traininig and performance evaluation.|
 | `12_causal_mutation_analysis.ipynb`  | Fig.6B | Empirical top-k ranking analysis of the model's ability to prioritize causal resistance genes among mutated candidates.|
