@@ -40,7 +40,7 @@ Jupyter notebooks need to executed according to directory numbering (1_ → 12_)
 
 | Category | Path | File | SL Pair | Description | Reference |
 |---------|------|------|--------|-------------|-----------|
-| Gene annotation | `input_data/HGNC` | `hgnc_complete_set.txt` | — | Mapping of gene symbols to HGNC, Ensembl, and Entrez identifiers | [HGNC](https://www.genenames.org/download/custom/) |
+| Gene annotation | `input_data/HGNC` | `hgnc_complete_set.txt` | — | Mapping of gene symbols to HGNC, Ensembl, and Entrez identifiers (downloaded on April 12, 2024)| [HGNC](https://www.genenames.org/download/custom/) |
 | Protein-protein interaction | `input_data/STRING` | `9606.protein.info.v12.0.txt` | — | list of STRING proteins incl. their display names and descriptions (downloaded on December 7, 2023, version 12.0) | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
 | Protein-protein interaction | `input_data/STRING` | `9606.protein.links.detailed.v12.0.txt` | — | STRING protein network data full network, incl. subscores per channel (downloaded on December 7, 2023, version 12.0) | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
 | Protein-protein interaction | `input_data/BIOGRID` | `BIOGRID-MV-Physical-4.4.229.tab3.txt` | — | BIOGRID Physical protein interaction network data (downloaded on December 29, 2023, version 4.4.229) | [BIOGRID_Physical](https://downloads.thebiogrid.org/BioGRID/Release-Archive/BIOGRID-4.4.229/) |
