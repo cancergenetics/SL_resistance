@@ -1,0 +1,393 @@
+"""Shared library — PPI feature extraction.
+
+Computes:
+  - BIOGRID-ALL shared-interactor FET features for biomarker/target1/target2-query
+  - STRING shared-interactor FET features (≥400 threshold for partner set)
+  - STRING combined-score features (no threshold) for biomarker/target1/target2-query
+  - BIOGRID-MV physical-binary existence flags
+  - Biomarker TSG/oncogene label from the Cancer Gene Census
+
+Public entry point: extract_ppi(features_main_schema_csv, feature_output_dir, hgnc_tsv, root)
+
+Refactored from validation/lloyd/scripts/04_extract_features_ppi.py — paths
+become function arguments instead of config imports so multiple validation
+screens can call this without duplication.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Dict, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+import scipy.stats as stats
+
+STRING_SCORE_THRESHOLD = 400
+
+
+def normalize_symbol(s: Optional[str]) -> Optional[str]:
+    return s.strip().upper() if isinstance(s, str) else None
+
+
+def classify_biomarker_tsg_oncogene(main_df: pd.DataFrame, census_df: pd.DataFrame) -> pd.DataFrame:
+    if "Biomarker" not in main_df.columns:
+        raise KeyError("'Biomarker' column not found in MAIN dataset")
+    if "Gene Symbol" not in census_df.columns or "Role in Cancer" not in census_df.columns:
+        raise KeyError("Cancer Gene Census file must contain 'Gene Symbol' and 'Role in Cancer'")
+
+    tmp = main_df[["Biomarker"]].copy()
+    tmp["Biomarker"] = tmp["Biomarker"].astype(str)
+    role_mapping = census_df.assign(**{"Gene Symbol": census_df["Gene Symbol"].astype(str)}) \
+        .set_index("Gene Symbol")["Role in Cancer"].to_dict()
+
+    def classify_gene(sym: str):
+        role = role_mapping.get(sym)
+        if role and not pd.isna(role):
+            if "TSG" in role:
+                return 1
+            if "oncogene" in role:
+                return 0
+        return np.nan
+
+    tmp["TSG_Label"] = tmp["Biomarker"].apply(classify_gene)
+    return tmp
+
+
+def process_biogrid_ppi_data(data: pd.DataFrame) -> pd.DataFrame:
+    hsapien = 9606
+    biogrid_ppi = data[
+        (data["Organism ID Interactor A"] == hsapien)
+        & (data["Organism ID Interactor B"] == hsapien)
+        & (data["Experimental System Type"] == "physical")
+    ][["Entrez Gene Interactor A", "Entrez Gene Interactor B", "Experimental System"]].rename(
+        columns={
+            "Entrez Gene Interactor A": "A1_entrez",
+            "Entrez Gene Interactor B": "A2_entrez",
+            "Experimental System": "experimental_system",
+        }
+    ).drop_duplicates().reset_index(drop=True).astype({"A1_entrez": "int", "A2_entrez": "int"})
+    biogrid_ppi = biogrid_ppi[biogrid_ppi["A1_entrez"] != biogrid_ppi["A2_entrez"]].reset_index(drop=True)
+
+    biogrid_unique = pd.DataFrame(
+        np.sort(biogrid_ppi[["A1_entrez", "A2_entrez"]], axis=1),
+        columns=["A1_entrez", "A2_entrez"],
+    ).drop_duplicates().reset_index(drop=True)
+    return biogrid_unique
+
+
+def compute_ppi_summary_for_pairs(ppi: pd.DataFrame, gene_pairs: pd.DataFrame) -> pd.DataFrame:
+    ppi_symmetric = pd.concat([ppi, ppi.rename(columns={"A1_entrez": "A2_entrez", "A2_entrez": "A1_entrez"})]).reset_index(drop=True)
+    assert ppi_symmetric.shape[0] == ppi.shape[0] * 2
+
+    gene_ppi = pd.merge(gene_pairs[["A1_entrez", "A2_entrez"]], ppi_symmetric, how="left", indicator="interact")
+    gene_ppi.interact = gene_ppi.interact == "both"
+    print("N. gene pairs that interact:", sum(gene_ppi.interact))
+
+    ppi_per_gene = (
+        ppi_symmetric.groupby("A1_entrez").agg({"A2_entrez": set}).reset_index()
+        .rename(columns={"A1_entrez": "gene", "A2_entrez": "ppi"})
+    )
+
+    df = pd.merge(gene_ppi, ppi_per_gene.rename(columns={"gene": "A1_entrez", "ppi": "A1_ppi"}), how="left")
+    df = pd.merge(df, ppi_per_gene.rename(columns={"gene": "A2_entrez", "ppi": "A2_ppi"}), how="left")
+
+    df["A1_ppi"] = df["A1_ppi"].apply(lambda d: d if not pd.isnull(d) else set())
+    df["A2_ppi"] = df["A2_ppi"].apply(lambda d: d if not pd.isnull(d) else set())
+
+    df.A1_ppi = df.apply(lambda x: x.A1_ppi - {x.A2_entrez}, axis=1)
+    df.A2_ppi = df.apply(lambda x: x.A2_ppi - {x.A1_entrez}, axis=1)
+
+    df["n_A1_ppi"] = df.apply(lambda x: len(x.A1_ppi), axis=1)
+    df["n_A2_ppi"] = df.apply(lambda x: len(x.A2_ppi), axis=1)
+    df["shared_ppi"] = df.apply(lambda x: x.A1_ppi.intersection(x.A2_ppi), axis=1)
+    df["n_total_ppi"] = df.apply(lambda x: len(x.A1_ppi.union(x.A2_ppi)), axis=1)
+    df["n_shared_ppi"] = df.apply(lambda x: len(x.shared_ppi), axis=1)
+
+    def calc_jaccard_index(x):
+        if x.n_shared_ppi == 0:
+            return 0
+        return x.n_shared_ppi / ((x.n_A1_ppi + x.n_A2_ppi) - x.n_shared_ppi)
+
+    df["shared_ppi_jaccard_idx"] = df.apply(calc_jaccard_index, axis=1)
+
+    N = len(pd.concat([ppi.A1_entrez, ppi.A2_entrez]).unique())
+    print("N genes involded in interactions:", N)
+
+    def calc_fet_shared_ppi(x):
+        ctab = pd.DataFrame(
+            {"A2": [x.n_shared_ppi, x.n_A2_ppi - x.n_shared_ppi],
+             "NA2": [x.n_A1_ppi - x.n_shared_ppi, N - x.n_total_ppi]},
+            index=["A1", "NA1"],
+        )
+        (OR, pval) = stats.fisher_exact(ctab)
+        if pval == 0:
+            pval = np.nextafter(0, 1)
+        log_pval = (-np.log10(pval)) if pval != 1 else 0
+        log_pval = -log_pval if OR < 1 else log_pval
+        return log_pval
+
+    df["fet_ppi_overlap"] = df.apply(calc_fet_shared_ppi, axis=1)
+    df = df.drop(columns=["A1_ppi", "A2_ppi", "n_A1_ppi", "n_A2_ppi"])
+    return df
+
+
+def build_hgnc_lookup_firstwin(hgnc_dict) -> Dict[str, Tuple[object, object, str]]:
+    gene_lookup: Dict[str, Tuple[object, object, str]] = {}
+    for entry in hgnc_dict:
+        hgnc_id = entry.get("hgnc_id", np.nan)
+        ensembl_id = entry.get("ensembl_gene_id", np.nan)
+        entrez_id = str(entry.get("entrez_id", "NA")) if pd.notnull(entry.get("entrez_id")) else "NA"
+        syms = []
+        s = normalize_symbol(entry.get("symbol"))
+        if s:
+            syms.append(s)
+        if pd.notnull(entry.get("prev_symbol")):
+            syms.extend(normalize_symbol(x) for x in str(entry["prev_symbol"]).split("|"))
+        if pd.notnull(entry.get("alias_symbol")):
+            syms.extend(normalize_symbol(x) for x in str(entry["alias_symbol"]).split("|"))
+        for sym in syms:
+            if sym and sym not in gene_lookup:
+                gene_lookup[sym] = (hgnc_id, ensembl_id, entrez_id)
+    return gene_lookup
+
+
+def lookup_gene_info_firstwin(gene_lookup, gene_symbol: str) -> Tuple[object, object, str]:
+    key = normalize_symbol(gene_symbol)
+    return gene_lookup.get(key, (np.nan, np.nan, "NA"))
+
+
+def load_and_map_string_all(hgnc_dict, string_links: Path, string_info_path: Path) -> pd.DataFrame:
+    string_all = pd.read_csv(string_links, sep=" ")
+    string_info = pd.read_csv(string_info_path, sep="\t")
+    string_all["protein1"] = string_all["protein1"].astype(str).str.replace("9606.", "")
+    string_all["protein2"] = string_all["protein2"].astype(str).str.replace("9606.", "")
+    string_info["#string_protein_id"] = string_info["#string_protein_id"].astype(str).str.replace("9606.", "")
+    string_info = string_info.iloc[:, :2].copy()
+
+    string_all = string_all.merge(string_info, left_on="protein1", right_on="#string_protein_id", how="left")
+    string_all = string_all.rename(columns={"preferred_name": "gene_symbol_1"}).drop(columns=["#string_protein_id"])
+    string_all = string_all.merge(string_info, left_on="protein2", right_on="#string_protein_id", how="left")
+    string_all = string_all.rename(columns={"preferred_name": "gene_symbol_2"}).drop(columns=["#string_protein_id"])
+
+    gene_lookup = build_hgnc_lookup_firstwin(hgnc_dict)
+    string_all["hgnc_id_1"], string_all["ensembl_gene_id_1"], string_all["entrez_id_1"] = zip(
+        *string_all["gene_symbol_1"].apply(lambda s: lookup_gene_info_firstwin(gene_lookup, str(s)))
+    )
+    string_all["hgnc_id_2"], string_all["ensembl_gene_id_2"], string_all["entrez_id_2"] = zip(
+        *string_all["gene_symbol_2"].apply(lambda s: lookup_gene_info_firstwin(gene_lookup, str(s)))
+    )
+    return string_all
+
+
+def build_string_unique_edges(string_df: pd.DataFrame) -> pd.DataFrame:
+    string_unique = (
+        string_df[["entrez_id_1", "entrez_id_2"]]
+        .rename(columns={"entrez_id_1": "A1_entrez", "entrez_id_2": "A2_entrez"})
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    string_unique["A1_entrez"] = pd.to_numeric(string_unique["A1_entrez"], errors="coerce").astype("Int64")
+    string_unique["A2_entrez"] = pd.to_numeric(string_unique["A2_entrez"], errors="coerce").astype("Int64")
+    print("N interactions:", string_unique.shape[0])
+    string_unique = string_unique.dropna(subset=["A1_entrez", "A2_entrez"])
+    string_unique = pd.DataFrame(
+        np.sort(string_unique[["A1_entrez", "A2_entrez"]], axis=1), columns=["A1_entrez", "A2_entrez"]
+    ).drop_duplicates()
+    string_unique = string_unique[string_unique["A1_entrez"] != string_unique["A2_entrez"]]
+    print("N interactions after sorting for unique pairs:", string_unique.shape[0])
+    print("N genes in interaction map:", pd.concat([string_unique.A1_entrez, string_unique.A2_entrez]).nunique())
+    return string_unique
+
+
+def build_string_score_dict(string_all: pd.DataFrame) -> Dict[Tuple[object, object], float]:
+    string_dict = {
+        (row["ensembl_gene_id_1"], row["ensembl_gene_id_2"]): row["combined_score"]
+        for _, row in string_all.iterrows()
+    }
+    string_dict.update({
+        (row["ensembl_gene_id_2"], row["ensembl_gene_id_1"]): row["combined_score"]
+        for _, row in string_all.iterrows()
+    })
+    return string_dict
+
+
+def build_hgnc_lookup_biogrid_mv_overwrite(hgnc_dict) -> Dict[str, Tuple[object, object]]:
+    gene_lookup: Dict[str, Tuple[object, object]] = {}
+    for entry in hgnc_dict:
+        hgnc_id = entry.get("hgnc_id", np.nan)
+        ensembl_id = entry.get("ensembl_gene_id", np.nan)
+        symbol = normalize_symbol(entry.get("symbol"))
+        if symbol:
+            gene_lookup[symbol] = (hgnc_id, ensembl_id)
+        if pd.notnull(entry.get("prev_symbol")):
+            for prev in str(entry["prev_symbol"]).split("|"):
+                key = normalize_symbol(prev)
+                if key and key not in gene_lookup:
+                    gene_lookup[key] = (hgnc_id, ensembl_id)
+        if pd.notnull(entry.get("alias_symbol")):
+            for alias in str(entry["alias_symbol"]).split("|"):
+                key = normalize_symbol(alias)
+                if key and key not in gene_lookup:
+                    gene_lookup[key] = (hgnc_id, ensembl_id)
+    return gene_lookup
+
+
+def load_and_map_biogrid_mv(hgnc_dict, biogrid_mv_physical_tsv: Path) -> pd.DataFrame:
+    biogrid = pd.read_csv(biogrid_mv_physical_tsv, sep="\t")
+    biogrid = biogrid[
+        (biogrid["Organism Name Interactor A"] == "Homo sapiens")
+        & (biogrid["Organism Name Interactor B"] == "Homo sapiens")
+    ].copy()
+    biogrid["SortedInteractors"] = biogrid.apply(
+        lambda row: "-".join(np.sort([row["Official Symbol Interactor A"], row["Official Symbol Interactor B"]])),
+        axis=1,
+    )
+    biogrid.drop_duplicates(subset="SortedInteractors", keep="first", inplace=True)
+    biogrid.drop(columns="SortedInteractors", inplace=True)
+    biogrid = biogrid.reset_index(drop=True)
+
+    gene_lookup = build_hgnc_lookup_biogrid_mv_overwrite(hgnc_dict)
+
+    def lookup(sym: str) -> Tuple[object, object]:
+        key = normalize_symbol(sym)
+        return gene_lookup.get(key, (np.nan, np.nan))
+
+    biogrid["hgnc_id_1"], biogrid["ensembl_gene_id_1"] = zip(*biogrid["Official Symbol Interactor A"].apply(lookup))
+    biogrid["hgnc_id_2"], biogrid["ensembl_gene_id_2"] = zip(*biogrid["Official Symbol Interactor B"].apply(lookup))
+    return biogrid
+
+
+def build_biogrid_exists_dict(biogrid: pd.DataFrame) -> Dict[Tuple[object, object], int]:
+    d = {(r["ensembl_gene_id_1"], r["ensembl_gene_id_2"]): 1 for _, r in biogrid.iterrows()}
+    d.update({(r["ensembl_gene_id_2"], r["ensembl_gene_id_1"]): 1 for _, r in biogrid.iterrows()})
+    return d
+
+
+def extract_ppi(features_main_schema_csv: Path, feature_output_dir: Path,
+                hgnc_tsv: Path, root: Path) -> None:
+    features_main_schema_csv = Path(features_main_schema_csv)
+    feature_output_dir = Path(feature_output_dir)
+    hgnc_tsv = Path(hgnc_tsv)
+    root = Path(root)
+
+    BIOGRID_ALL_TSV = root / "input_data" / "BIOGRID" / "BIOGRID-ALL-4.4.241.tab3.txt"
+    BIOGRID_MV_PHYSICAL_TSV = root / "input_data" / "BIOGRID" / "BIOGRID-MV-Physical-4.4.229.tab3.txt"
+    STRING_LINKS = root / "input_data" / "STRING" / "9606.protein.links.detailed.v12.0.txt"
+    STRING_INFO = root / "input_data" / "STRING" / "9606.protein.info.v12.0.txt"
+    CANCER_GENE_CENSUS_CSV = root / "input_data" / "Cancer_Gene_Census" / "Cancer_gene_census_data.csv"
+
+    OUT_FET_BIOGRID_BIOMARKER_QUERY = feature_output_dir / "fet_ppi_overlap_biomarker_query.csv"
+    OUT_FET_BIOGRID_TARGET1_QUERY = feature_output_dir / "fet_ppi_overlap_target1_query.csv"
+    OUT_FET_BIOGRID_TARGET2_QUERY = feature_output_dir / "fet_ppi_overlap_target2_query.csv"
+    OUT_FET_STRING_BIOMARKER_QUERY = feature_output_dir / "fet_ppi_overlap_biomarker_query_string.csv"
+    OUT_FET_STRING_TARGET1_QUERY = feature_output_dir / "fet_ppi_overlap_target1_query_string.csv"
+    OUT_FET_STRING_TARGET2_QUERY = feature_output_dir / "fet_ppi_overlap_target2_query_string.csv"
+    OUT_STRING_SCORE_BIOMARKER = feature_output_dir / "string_score_query_biomarker.csv"
+    OUT_STRING_SCORE_TARGET1 = feature_output_dir / "string_score_query_target1.csv"
+    OUT_STRING_SCORE_TARGET2 = feature_output_dir / "string_score_query_target2.csv"
+    OUT_BIOGRID_BIOMARKER_QUERY = feature_output_dir / "biogrid_biomarker_query.csv"
+    OUT_BIOGRID_TARGET_QUERY = feature_output_dir / "biogrid_target_query.csv"
+    OUT_BIOMARKER_TSG_LABEL = feature_output_dir / "biomarker_type.csv"
+
+    feature_output_dir.mkdir(parents=True, exist_ok=True)
+
+    main_csv = pd.read_csv(features_main_schema_csv, low_memory=False)
+    biomarker_query = main_csv[["entrez_id_biomarker", "entrez_id_query"]].rename(
+        columns={"entrez_id_biomarker": "A1_entrez", "entrez_id_query": "A2_entrez"}
+    )
+    target1_query = main_csv[["entrez_id_target1", "entrez_id_query"]].rename(
+        columns={"entrez_id_target1": "A1_entrez", "entrez_id_query": "A2_entrez"}
+    )
+    target2_query = main_csv[["entrez_id_target2", "entrez_id_query"]].rename(
+        columns={"entrez_id_target2": "A1_entrez", "entrez_id_query": "A2_entrez"}
+    )
+
+    biogrid_raw = pd.read_csv(BIOGRID_ALL_TSV, sep="\t", low_memory=False)
+    biogrid_unique = process_biogrid_ppi_data(biogrid_raw)
+    compute_ppi_summary_for_pairs(biogrid_unique, biomarker_query).to_csv(OUT_FET_BIOGRID_BIOMARKER_QUERY, index=False)
+    compute_ppi_summary_for_pairs(biogrid_unique, target1_query).to_csv(OUT_FET_BIOGRID_TARGET1_QUERY, index=False)
+    compute_ppi_summary_for_pairs(biogrid_unique, target2_query).to_csv(OUT_FET_BIOGRID_TARGET2_QUERY, index=False)
+
+    hgnc = pd.read_csv(hgnc_tsv, sep="\t", low_memory=False)
+    hgnc_dict = hgnc[["hgnc_id", "symbol", "prev_symbol", "ensembl_gene_id", "alias_symbol", "entrez_id"]] \
+        .to_dict(orient="records")
+
+    string_all = load_and_map_string_all(hgnc_dict, STRING_LINKS, STRING_INFO)
+    string_score_dict = build_string_score_dict(string_all)
+
+    string_filtered = string_all[string_all["combined_score"] >= STRING_SCORE_THRESHOLD].sort_values(
+        by="combined_score", ascending=False
+    )
+    string_unique = build_string_unique_edges(string_filtered)
+    compute_ppi_summary_for_pairs(string_unique, biomarker_query).to_csv(OUT_FET_STRING_BIOMARKER_QUERY, index=False)
+    compute_ppi_summary_for_pairs(string_unique, target1_query).to_csv(OUT_FET_STRING_TARGET1_QUERY, index=False)
+    compute_ppi_summary_for_pairs(string_unique, target2_query).to_csv(OUT_FET_STRING_TARGET2_QUERY, index=False)
+
+    main_csv2 = pd.read_csv(features_main_schema_csv, low_memory=False)
+
+    def get_score_biomarker(row):
+        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_biomarker"])
+        pair2 = (row["ensembl_gene_id_biomarker"], row["ensembl_gene_id_query"])
+        return string_score_dict.get(pair1) or string_score_dict.get(pair2)
+
+    def get_score_target1(row):
+        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_target1"])
+        pair2 = (row["ensembl_gene_id_target1"], row["ensembl_gene_id_query"])
+        return string_score_dict.get(pair1) or string_score_dict.get(pair2)
+
+    def get_score_target2(row):
+        target2 = row["ensembl_gene_id_target2"]
+        if pd.isna(target2) or target2 == "":
+            return 0
+        pair1 = (row["ensembl_gene_id_query"], target2)
+        pair2 = (target2, row["ensembl_gene_id_query"])
+        return string_score_dict.get(pair1) or string_score_dict.get(pair2) or 0
+
+    main_csv2["StringInteractionWithBiomarker"] = main_csv2.apply(get_score_biomarker, axis=1)
+    main_csv2[["ensembl_gene_id_query", "ensembl_gene_id_biomarker", "StringInteractionWithBiomarker"]].to_csv(OUT_STRING_SCORE_BIOMARKER, index=False)
+
+    main_csv2["StringInteractionWithTarget"] = main_csv2.apply(get_score_target1, axis=1)
+    main_csv2[["ensembl_gene_id_query", "ensembl_gene_id_target1", "StringInteractionWithTarget"]].to_csv(OUT_STRING_SCORE_TARGET1, index=False)
+
+    main_csv2["StringInteractionWithTarget2"] = main_csv2.apply(get_score_target2, axis=1)
+    main_csv2[["ensembl_gene_id_query", "ensembl_gene_id_target2", "StringInteractionWithTarget2"]].to_csv(OUT_STRING_SCORE_TARGET2, index=False)
+
+    main_csv3 = pd.read_csv(features_main_schema_csv, low_memory=False)
+    biogrid_mv = load_and_map_biogrid_mv(hgnc_dict, BIOGRID_MV_PHYSICAL_TSV)
+    biogrid_dict = build_biogrid_exists_dict(biogrid_mv)
+
+    def check_bio_biomarker(row):
+        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_biomarker"])
+        pair2 = (row["ensembl_gene_id_biomarker"], row["ensembl_gene_id_query"])
+        return 1 if pair1 in biogrid_dict or pair2 in biogrid_dict else 0
+
+    def check_bio_target1(row):
+        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_target1"])
+        pair2 = (row["ensembl_gene_id_target1"], row["ensembl_gene_id_query"])
+        return 1 if pair1 in biogrid_dict or pair2 in biogrid_dict else 0
+
+    def check_bio_target2(row):
+        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_target2"])
+        pair2 = (row["ensembl_gene_id_target2"], row["ensembl_gene_id_query"])
+        return 1 if pair1 in biogrid_dict or pair2 in biogrid_dict else 0
+
+    main_csv3["BIOGRIDPhysicalInteractionQueryBiomarker"] = main_csv3.apply(check_bio_biomarker, axis=1)
+    main_csv3["BIOGRIDPhysicalInteractionQueryTarget1"] = main_csv3.apply(check_bio_target1, axis=1)
+    main_csv3["BIOGRIDPhysicalInteractionQueryTarget2"] = main_csv3.apply(check_bio_target2, axis=1)
+    main_csv3["BIOGRIDPhysicalInteractionQueryTarget"] = (
+        main_csv3["BIOGRIDPhysicalInteractionQueryTarget1"] | main_csv3["BIOGRIDPhysicalInteractionQueryTarget2"]
+    ).astype(int)
+
+    main_csv3[["ensembl_gene_id_query", "ensembl_gene_id_biomarker", "BIOGRIDPhysicalInteractionQueryBiomarker"]].to_csv(OUT_BIOGRID_BIOMARKER_QUERY, index=False)
+    main_csv3[["ensembl_gene_id_query", "ensembl_gene_id_target1", "BIOGRIDPhysicalInteractionQueryTarget"]].to_csv(OUT_BIOGRID_TARGET_QUERY, index=False)
+
+    try:
+        cancer_gene_census = pd.read_csv(CANCER_GENE_CENSUS_CSV, low_memory=False)
+        biomarker_type = classify_biomarker_tsg_oncogene(main_csv3, cancer_gene_census)
+        biomarker_type.to_csv(OUT_BIOMARKER_TSG_LABEL, index=False)
+        print("[OK] Biomarker TSG/oncogene labels written:", OUT_BIOMARKER_TSG_LABEL)
+    except FileNotFoundError:
+        print(f"[WARN] Cancer Gene Census file not found: {CANCER_GENE_CENSUS_CSV} (skipping TSG/oncogene labels)")
+
+    print("[OK] Finished. Outputs written to:", feature_output_dir)

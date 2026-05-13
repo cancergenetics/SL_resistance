@@ -1,0 +1,39 @@
+"""Knoll validation — top-k prioritization."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from config import (
+    FEATURE_COLS,
+    FEATURES_DROPNA_DEDUP_CSV,
+    LABELS_AVG_CSV,
+    RESULTS,
+    RF_KW,
+    SCREEN_AVG,
+    TARGET_COL,
+    TRAIN_CSV,
+)
+from lib.topk import run_screen_topk
+
+
+def main() -> None:
+    run_screen_topk(
+        train_csv=TRAIN_CSV,
+        val_features_csv=FEATURES_DROPNA_DEDUP_CSV,
+        labels_csv=LABELS_AVG_CSV,
+        screen_name=SCREEN_AVG,
+        out_stem=RESULTS / "topk_knoll",
+        out_json=RESULTS / "topk_knoll.json",
+        feature_cols=FEATURE_COLS,
+        target_col=TARGET_COL,
+        rf_kw=RF_KW,
+    )
+
+
+if __name__ == "__main__":
+    main()
