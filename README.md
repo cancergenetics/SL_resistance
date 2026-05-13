@@ -163,7 +163,6 @@ cd ..
 | Gene expression | `input_data/GTEx` | `GTEx_Analysis_v10_RNASeQCv2.4.2_gene_tpm.gct.gz` | — | Gene expression profiles from Genotype-Tissue Expression (GTEx) bulk tissue data (downloaded on February 5, 2025, version 10, RNASeQCv2.4.2) | [GTEx](https://www.gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression) |
 | Gene essentiality | `input_data/DepMap` | `CRISPRGeneEffect.csv` | — | Genome-scale CRISPR dependency profiles reported by the Cancer Dependency Map (DepMap, 23Q4 dataset) | [DepMap](https://depmap.org/portal/data_page/?tab=allData) |
 | Mouse-human orthology | `input_data/Ensembl` | `mouse_human_orthologs_ensembl.tsv` | — | Mouse → human gene ortholog table (Ensembl BioMart `mmusculus_gene_ensembl`, cached locally) | [Ensembl BioMart](https://mart.ensembl.org/biomart/martview) |
-| CRISPR screen | `input_data/1_resistance_screens` | `awwad_ARID1A_ATR_screen.xlsx` | ARID1A–ATR | CRISPR resistance screen with gene-level resistance annotations | [Awwad et al., 2025](https://www.nature.com/articles/s41467-024-55637-5) (Supp. Data 1) |
 | CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_AKT_screen.xlsx` | PTEN–AKT | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
 | CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_PIK3CB_screen.xlsx` | PTEN–PIK3CB | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
 | CRISPR screen | `input_data/1_resistance_screens` | `hayes_NRAS_CDK4_6_screen.xlsx` | NRAS–CDK4/6 | CRISPR resistance screen with gene-level resistance annotations | [Hayes et al., 2019](https://aacrjournals.org/cancerres/article/79/9/2352/640672) (Supp. Table 1) |
@@ -175,7 +174,6 @@ cd ..
 | CRISPR screen | `input_data/1_resistance_screens` | `noordermeer_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | CRISPR resistance screen with gene-level resistance annotations | [Noordermeer et al., 2018](https://www.nature.com/articles/s41586-018-0340-7) (Supp. Table 1) |
 | CRISPR screen | `input_data/1_resistance_screens` | `wang_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Wang et al., 2017](https://www.sciencedirect.com/science/article/pii/S2211124717300682) (Supp. Table 1) |
 | CRISPR screen | `input_data/1_resistance_screens` | `yu_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Yu et al., 2022](https://www.nature.com/articles/s41388-021-02077-w) (Supp. Table 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `zimmermann_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | CRISPR resistance screen with gene-level resistance annotations | [Zimmermann et al., 2018](https://www.nature.com/articles/s41586-018-0291-z) (Supp. Table 1) |
 
 ## Validation Data Sources
 
