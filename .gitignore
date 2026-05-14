@@ -4,6 +4,8 @@
 *.docx
 *.gz
 *.tsv
+*.pdf
+*.json
 .DS_Store
 
 # Exception: processed resistance screen outputs
