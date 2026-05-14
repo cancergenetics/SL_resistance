@@ -1,5 +1,7 @@
 *.csv
 *.txt
 *.xlsx
+*.docx
 *.gz
+*.tsv
 .DS_Store

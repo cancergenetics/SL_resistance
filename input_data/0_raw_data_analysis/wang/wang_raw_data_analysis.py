@@ -11,7 +11,7 @@ CONTROL_TERMS = [
 MIR_PREFIXES = ("HSA-MIR", "MIR")
 
 HGNC_FILE  = "../../HGNC/hgnc_complete_set.txt"
-CRISPR_FILE = "wang_raw_data.xlsx"
+CRISPR_FILE = "wang_supp_table_1.xlsx"
 OUTPUT_DIR  = "."
 
 
@@ -384,7 +384,8 @@ def merge_union(results: list, sheet_names: list) -> pd.DataFrame:
 
 
 merged_result = merge_union(screen_results, xl.sheet_names)
-merged_path   = os.path.join(OUTPUT_DIR, "wang_KRAS_MEK_screen.xlsx")
+merged_path   = os.path.join(os.path.dirname(__file__), "../../1_resistance_screens/wang_KRAS_MEK_screen.xlsx")
+merged_path   = os.path.abspath(merged_path)
 merged_result.to_excel(merged_path, index=False)
 print(f"[Merged Union] Saved → {merged_path}")
 
