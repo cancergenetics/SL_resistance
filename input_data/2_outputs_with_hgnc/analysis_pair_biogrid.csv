@@ -1,0 +1,11 @@
+protein_names,pair_name,screen_prefix,input_filename
+PTEN;PIK3CB,PTEN_PIK3CB,dunn,
+PTEN;AKT1;AKT2;AKT3;AKT4,PTEN_AKT,dunn,
+NRAS;CDK4;Cdk4;CDK6;Cdk6,NRAS_CDK4_6,hayes,
+BRAF;MAP2K1;MEK1;MAP2K2;MEK2,BRAF_MEK,krall,
+ATR;ARID1A,ARID1A_ATR,llorca,
+BRCA2;PARP1,BRCA2_PARP1,clements,
+CCNE1;PKMYT1,CCNE1_PKMYT1,gallo,
+BRCA1;PARP1,BRCA1_PARP1,Dev_Noordermeer,BRCA1_PARP1_Dev_Noordermeer_aggregated.csv
+KRAS;MAP2K1;MEK1;MAP2K2;MEK2,KRAS_MEK,Krall_Wang,KRAS_MEK_Krall_Wang_aggregated.csv
+NRAS;MAP2K1;MEK1;MAP2K2;MEK2,NRAS_MEK,Hayes_Krall,NRAS_MEK_Hayes_Krall_aggregated.csv

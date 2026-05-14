@@ -4,6 +4,17 @@ This repository contains Python scripts and files for data processing and analys
 
 Cite as : []
 
+## Environment
+
+The code was developed and tested using a Conda environment with **Python 3.12**.
+
+To recreate the environment, run:
+
+```bash
+conda env create -f environment.yml
+conda activate predicting_resistance_sl
+```
+
 ## Data processing scripts overview
 
 These scripts process raw / third-party data and reproduce all main analyses. Notebooks were converted to `.py` for reproducibility.
@@ -70,17 +81,6 @@ Single source-of-truth implementation of feature extraction, RF evaluation, and 
 | `lib/merge_features.py` | Merge all feature outputs → dropna + dedup. |
 | `lib/rf_eval.py` | RandomForest + ROC/PR + bootstrap CI + auto-leakage-exclusion variant. |
 | `lib/topk.py` | Top-k Monte Carlo simulation (global negative sampling). |
-
-## Environment
-
-The code was developed and tested using a Conda environment with **Python 3.12**.
-
-To recreate the environment, run:
-
-```bash
-conda env create -f environment.yml
-conda activate predicting_resistance_sl
-```
 
 ## Execution Order
 
@@ -184,3 +184,22 @@ cd ..
 |---------|------|------|--------|-------------|-----------|
 | Validation screen | `validation/lloyd/raw_data` | `Supplementary Table 1.xlsx` | ATM–ATR | Genome-wide CRISPR resistance screen in ATM-WT and ATM-KO mouse mESCs treated with AZD6738 (ATR inhibitor); IC10 and IC90 doses, SUM and REP MAGeCK analysis variants | [Lloyd et al., 2021](https://www.cell.com/cell-reports/fulltext/S2211-1247(21)00217-6) (Supp. Table 1) |
 | Validation screen | `validation/knoll/raw_data` | `knoll_raw_data.csv` | MTAP–PRMT5 | Paralog + single-gene CRISPR screen in NSCLC cell lines (LU99, SW1573) treated with MTA-cooperative PRMT5 inhibitors (MRTX1719, MRTX9768); LFC differences (MRTXi vs DMSO) per cell line + AvgDiff | [Knoll et al., 2025](https://aacrjournals.org/cancerres/article/85/18/3518) (Supp. Tables S2, S3) |
+
+## Pre-generated Data Files
+
+These files are committed to the repository and do not need to be generated or downloaded separately. They serve as direct inputs to downstream pipeline steps.
+
+### Processed CRISPR resistance screens (`input_data/1_resistance_screens/`)
+
+Each file contains genome-wide gene-level resistance annotations derived from published CRISPR screens. Format: two columns — `Class` (Resistance / Non-Resistance) and `Gene` (HGNC-approved symbol). Resistance genes are those enriched under drug selection in the original screen; non-resistance genes are the remainder of the screened library. These files are the primary input to `01_resistance_screen_data_preprocessing.py`, which combines them into a unified training dataset for the machine learning model. Each file was produced by a reproducible script in `input_data/0_raw_data_analysis/<screen>/`.
+
+### Clinical trials biomarker–target table (`clinical_trials/biomarker_target_genes.xlsx`)
+
+Defines the 11 synthetic-lethal biomarker–target pairs evaluated in the clinical trials pipeline (e.g., MSH6/WRN, CCNE1/PKMYT1, BRCA1/ATR). Each row specifies a biomarker gene, a primary drug target, and optionally a secondary target. Read by `clinical_trials/01_ML_data_preprocessing.py` as the entry point for the clinical prediction pipeline.
+
+### HGNC-mapped PPI analysis outputs (`input_data/2_outputs_with_hgnc/`)
+
+| File | Produced by | Used by | Description |
+|------|-------------|---------|-------------|
+| `analysis_pair_string.csv` | `02_STRING_interaction_overlap_analysis.py` | `04_interaction_overlap_graphs.py`, `05_randomness_analysis.py` | Per-gene STRING PPI overlap scores for each SL pair × screen combination, with HGNC-resolved symbols. Stores whether each gene shares a PPI partner with the biomarker or target in the STRING network (medium confidence ≥ 400). |
+| `analysis_pair_biogrid.csv` | `03_BIOGRID_interaction_overlap_analysis.py` | `04_interaction_overlap_graphs.py`, `05_randomness_analysis.py` | Same as above using BioGRID physical interactions. Used alongside the STRING file to produce the interaction enrichment figures and random network comparisons. |

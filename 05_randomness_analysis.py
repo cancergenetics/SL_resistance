@@ -162,17 +162,24 @@ def generate_random_networks(edge_df, col_a, col_b, output_dir, prefix, n_random
     print(f"Done. Files saved to {output_dir}/")
 
 
+def _maybe_generate(edge_df, col_a, col_b, output_dir, prefix, n_random=N_RANDOM):
+    existing = sum(1 for i in range(n_random) if os.path.exists(os.path.join(output_dir, f'{prefix}_{i}.txt')))
+    if existing == n_random:
+        print(f"Skipping {prefix}: all {n_random} files already exist in {output_dir}/")
+        return
+    print(f"Found {existing}/{n_random} existing files — regenerating all.")
+    generate_random_networks(edge_df, col_a, col_b, output_dir, prefix, n_random)
+
 
 # Generate STRING random networks
-generate_random_networks(
+_maybe_generate(
     STRING_FILTERED, 'protein1', 'protein2',
     STRING_RANDOM_DIR, 'string_random', N_RANDOM
 )
 
 
-
 # Generate BioGRID random networks
-generate_random_networks(
+_maybe_generate(
     BIOGRID, 'Official Symbol Interactor A', 'Official Symbol Interactor B',
     BIOGRID_RANDOM_DIR, 'biogrid_random', N_RANDOM
 )

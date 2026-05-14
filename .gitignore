@@ -5,3 +5,13 @@
 *.gz
 *.tsv
 .DS_Store
+
+# Exception: processed resistance screen outputs
+!input_data/1_resistance_screens/*.xlsx
+
+# Exception: clinical trials gene table
+!clinical_trials/biomarker_target_genes.xlsx
+
+# Exception: HGNC-mapped analysis pair files
+!input_data/2_outputs_with_hgnc/analysis_pair_biogrid.csv
+!input_data/2_outputs_with_hgnc/analysis_pair_string.csv
