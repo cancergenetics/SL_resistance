@@ -154,38 +154,47 @@ cd ..
 
 ## Data Sources
 
-| Category | Path | File | SL Pair | Description | Reference |
-|---------|------|------|--------|-------------|-----------|
-| Gene annotation | `input_data/HGNC` | `hgnc_complete_set.txt` | — | Mapping of gene symbols to HGNC, Ensembl, and Entrez identifiers (downloaded on April 12, 2024) | [HGNC](https://www.genenames.org/download/custom/) |
-| Protein-protein interaction | `input_data/STRING` | `9606.protein.info.v12.0.txt` | — | List of STRING proteins incl. their display names and descriptions (downloaded on December 7, 2023, version 12.0) | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
-| Protein-protein interaction | `input_data/STRING` | `9606.protein.links.detailed.v12.0.txt` | — | STRING protein network data, full network, incl. subscores per channel (downloaded on December 7, 2023, version 12.0) | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
-| Protein-protein interaction | `input_data/BIOGRID` | `BIOGRID-MV-Physical-4.4.229.tab3.txt` | — | BIOGRID Physical protein interaction network data (downloaded on December 29, 2023, version 4.4.229) | [BIOGRID_Physical](https://downloads.thebiogrid.org/BioGRID/Release-Archive/BIOGRID-4.4.229/) |
-| Protein-protein interaction | `input_data/BIOGRID` | `BIOGRID-ALL-4.4.241.tab3.txt` | — | BIOGRID protein interaction network data (downloaded on November 28, 2024, version 4.4.241) | [BIOGRID](https://downloads.thebiogrid.org/BioGRID/Release-Archive/BIOGRID-4.4.241/) |
-| Gene annotation | `input_data/Cancer_Gene_Census` | `Cancer_gene_census_data.csv` | — | A high-confidence, expert-curated catalogue of genes with causal roles in human cancer | [CGC](https://cancer.sanger.ac.uk/cosmic/census) |
-| Gene expression | `input_data/GTEx` | `GTEx_Analysis_v10_RNASeQCv2.4.2_gene_tpm.gct.gz` | — | Gene expression profiles from Genotype-Tissue Expression (GTEx) bulk tissue data (downloaded on February 5, 2025, version 10, RNASeQCv2.4.2) | [GTEx](https://www.gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression) |
-| Gene essentiality | `input_data/DepMap` | `CRISPRGeneEffect.csv` | — | Genome-scale CRISPR dependency profiles reported by the Cancer Dependency Map (DepMap, 23Q4 dataset) | [DepMap](https://depmap.org/portal/data_page/?tab=allData) |
-| Mouse-human orthology | `input_data/Ensembl` | `mouse_human_orthologs_ensembl.tsv` | — | Mouse → human gene ortholog table (Ensembl BioMart `mmusculus_gene_ensembl`, cached locally) | [Ensembl BioMart](https://mart.ensembl.org/biomart/martview) |
-| CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_AKT_screen.xlsx` | PTEN–AKT | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `dunn_PTEN_PIK3CB_screen.xlsx` | PTEN–PIK3CB | CRISPR resistance screen with gene-level resistance annotations | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `hayes_NRAS_CDK4_6_screen.xlsx` | NRAS–CDK4/6 | CRISPR resistance screen with gene-level resistance annotations | [Hayes et al., 2019](https://aacrjournals.org/cancerres/article/79/9/2352/640672) (Supp. Table 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `hayes_NRAS_MEK_screen.xlsx` | NRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Hayes et al., 2019](https://aacrjournals.org/cancerres/article/79/9/2352/640672) (Supp. Table 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `krall_BRAF_MEK_screen.xlsx` | BRAF–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Krall et al., 2017](https://elifesciences.org/articles/18970) (Supp. File 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `krall_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Krall et al., 2017](https://elifesciences.org/articles/18970) (Supp. File 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `krall_NRAS_MEK_screen.xlsx` | NRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Krall et al., 2017](https://elifesciences.org/articles/18970) (Supp. File 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `llorca_ARID1A_ATR_screen.xlsx` | ARID1A–ATR | CRISPR resistance screen with gene-level resistance annotations | [Llorca-Cardenosa et al., 2022](https://aacrjournals.org/cancerres/article/82/21/3962/709958) (Supp. Table 3) |
-| CRISPR screen | `input_data/1_resistance_screens` | `noordermeer_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | CRISPR resistance screen with gene-level resistance annotations | [Noordermeer et al., 2018](https://www.nature.com/articles/s41586-018-0340-7) (Supp. Table 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `dev_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | CRISPR resistance screen with gene-level resistance annotations | [Dev et al., 2018](https://www.nature.com/articles/s41556-018-0140-1) (Supp. Table 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `wang_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Wang et al., 2017](https://www.sciencedirect.com/science/article/pii/S2211124717300682) (Supp. Table 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `yu_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | CRISPR resistance screen with gene-level resistance annotations | [Yu et al., 2022](https://www.nature.com/articles/s41388-021-02077-w) (Supp. Table 1) |
-| CRISPR screen | `input_data/1_resistance_screens` | `clements_BRCA2_PARP1_screen.xlsx` | BRCA2–PARP1 | CRISPR resistance screen with gene-level resistance annotations | [Clements et al., 2020](https://www.nature.com/articles/s41467-020-19961-w) (Supp. Data-2) |
-| CRISPR screen | `input_data/1_resistance_screens` | `gallo_CCNE1_PKMYT1_screen.xlsx` | CCNE1–PKMYT1 | CRISPR resistance screen with gene-level resistance annotations | [Gallo et al., 2022](https://www.nature.com/articles/s41586-022-04638-9) (Supp. Table 1) |
+### Reference databases
 
-## Validation Data Sources
+| Category | Path | File | Description | Reference |
+|----------|------|------|-------------|-----------|
+| Gene annotation | `input_data/HGNC` | `hgnc_complete_set.txt` | Gene symbol → HGNC/Ensembl/Entrez mapping (downloaded April 12, 2024) | [HGNC](https://www.genenames.org/download/custom/) |
+| Protein-protein interaction | `input_data/STRING` | `9606.protein.info.v12.0.txt` | STRING protein display names and descriptions (v12.0, December 7, 2023) | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
+| Protein-protein interaction | `input_data/STRING` | `9606.protein.links.detailed.v12.0.txt` | STRING full network with per-channel subscores (v12.0, December 7, 2023) | [STRING](https://string-db.org/cgi/download?sessionId=bANI3NDYl4wQ) |
+| Protein-protein interaction | `input_data/BIOGRID` | `BIOGRID-MV-Physical-4.4.229.tab3.txt` | BioGRID physical interactions (v4.4.229, December 29, 2023) | [BioGRID](https://downloads.thebiogrid.org/BioGRID/Release-Archive/BIOGRID-4.4.229/) |
+| Protein-protein interaction | `input_data/BIOGRID` | `BIOGRID-ALL-4.4.241.tab3.txt` | BioGRID all interactions (v4.4.241, November 28, 2024) | [BioGRID](https://downloads.thebiogrid.org/BioGRID/Release-Archive/BIOGRID-4.4.241/) |
+| Gene annotation | `input_data/Cancer_Gene_Census` | `Cancer_gene_census_data.csv` | Expert-curated catalogue of genes with causal roles in cancer | [CGC](https://cancer.sanger.ac.uk/cosmic/census) |
+| Gene expression | `input_data/GTEx` | `GTEx_Analysis_v10_RNASeQCv2.4.2_gene_tpm.gct.gz` | GTEx bulk tissue gene expression profiles (v10, February 5, 2025) | [GTEx](https://www.gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression) |
+| Gene essentiality | `input_data/DepMap` | `CRISPRGeneEffect.csv` | Genome-scale CRISPR dependency profiles (DepMap 23Q4) | [DepMap](https://depmap.org/portal/data_page/?tab=allData) |
+| Mouse-human orthology | `input_data/Ensembl` | `mouse_human_orthologs_ensembl.tsv` | Mouse → human ortholog table from Ensembl BioMart (cached locally) | [Ensembl BioMart](https://mart.ensembl.org/biomart/martview) |
 
-| Category | Path | File | SL Pair | Description | Reference |
-|---------|------|------|--------|-------------|-----------|
-| Validation screen | `validation/lloyd/raw_data` | `Supplementary Table 1.xlsx` | ATM–ATR | Genome-wide CRISPR resistance screen in ATM-WT and ATM-KO mouse mESCs treated with AZD6738 (ATR inhibitor); IC10 and IC90 doses, SUM and REP MAGeCK analysis variants | [Lloyd et al., 2021](https://academic.oup.com/nar/article/49/15/8665/6331679) (Supp. Table 1) |
-| Validation screen | `validation/knoll/raw_data` | `knoll_raw_data.csv` | MTAP–PRMT5 | Paralog + single-gene CRISPR screen in NSCLC cell lines (LU99, SW1573) treated with MTA-cooperative PRMT5 inhibitors (MRTX1719, MRTX9768); LFC differences (MRTXi vs DMSO) per cell line + AvgDiff | [Knoll et al., 2025](https://aacrjournals.org/cancerres/article/85/18/3518/764451/CRISPR-Drug-Combinatorial-Screening-Identifies) (Supp. Tables S2, S3) |
+### Training CRISPR resistance screens
+
+All screen files are in `input_data/1_resistance_screens/` in `[Class, Gene]` format.
+
+| File | SL Pair | Reference |
+|------|---------|-----------|
+| `dunn_PTEN_AKT_screen.xlsx` | PTEN–AKT | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
+| `dunn_PTEN_PIK3CB_screen.xlsx` | PTEN–PIK3CB | [Dunn et al., 2022](https://www.nature.com/articles/s41388-022-02482-9) (Supp. Table 1) |
+| `hayes_NRAS_CDK4_6_screen.xlsx` | NRAS–CDK4/6 | [Hayes et al., 2019](https://aacrjournals.org/cancerres/article/79/9/2352/640672) (Supp. Table 1) |
+| `hayes_NRAS_MEK_screen.xlsx` | NRAS–MEK1/2 | [Hayes et al., 2019](https://aacrjournals.org/cancerres/article/79/9/2352/640672) (Supp. Table 1) |
+| `krall_BRAF_MEK_screen.xlsx` | BRAF–MEK1/2 | [Krall et al., 2017](https://elifesciences.org/articles/18970) (Supp. File 1) |
+| `krall_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | [Krall et al., 2017](https://elifesciences.org/articles/18970) (Supp. File 1) |
+| `krall_NRAS_MEK_screen.xlsx` | NRAS–MEK1/2 | [Krall et al., 2017](https://elifesciences.org/articles/18970) (Supp. File 1) |
+| `llorca_ARID1A_ATR_screen.xlsx` | ARID1A–ATR | [Llorca-Cardenosa et al., 2022](https://aacrjournals.org/cancerres/article/82/21/3962/709958) (Supp. Table 3) |
+| `noordermeer_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | [Noordermeer et al., 2018](https://www.nature.com/articles/s41586-018-0340-7) (Supp. Table 1) |
+| `dev_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | [Dev et al., 2018](https://www.nature.com/articles/s41556-018-0140-1) (Supp. Table 1) |
+| `wang_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | [Wang et al., 2017](https://www.sciencedirect.com/science/article/pii/S2211124717300682) (Supp. Table 1) |
+| `yu_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | [Yu et al., 2022](https://www.nature.com/articles/s41388-021-02077-w) (Supp. Table 1) |
+| `clements_BRCA2_PARP1_screen.xlsx` | BRCA2–PARP1 | [Clements et al., 2020](https://www.nature.com/articles/s41467-020-19961-w) (Supp. Data-2) |
+| `gallo_CCNE1_PKMYT1_screen.xlsx` | CCNE1–PKMYT1 | [Gallo et al., 2022](https://www.nature.com/articles/s41586-022-04638-9) (Supp. Table 1) |
+
+### Validation CRISPR resistance screens
+
+| File | Path | SL Pair | Description | Reference |
+|------|------|---------|-------------|-----------|
+| `Supplementary Table 1.xlsx` | `validation/lloyd/raw_data` | ATM–ATR | Genome-wide CRISPR screen in ATM-WT/KO mouse mESCs with AZD6738 (ATRi); IC10 and IC90 doses, SUM and REP MAGeCK variants | [Lloyd et al., 2021](https://academic.oup.com/nar/article/49/15/8665/6331679) (Supp. Table 1) |
+| `knoll_raw_data.csv` | `validation/knoll/raw_data` | MTAP–PRMT5 | Paralog + single-gene CRISPR screen in NSCLC (LU99, SW1573) with MRTX1719/MRTX9768; LFC differences per cell line + AvgDiff | [Knoll et al., 2025](https://aacrjournals.org/cancerres/article/85/18/3518/764451/CRISPR-Drug-Combinatorial-Screening-Identifies) (Supp. Tables S2, S3) |
 
 ## Pre-generated Data Files
 
