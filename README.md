@@ -17,7 +17,7 @@ conda activate predicting_resistance_sl
 
 ## Data processing scripts overview
 
-These scripts process raw / third-party data and reproduce all main analyses. Notebooks were converted to `.py` for reproducibility.
+See [Execution Order](#execution-order) for how to run these scripts.
 
 | Script | Figures | Brief description |
 |--------|---------|-------------------|
