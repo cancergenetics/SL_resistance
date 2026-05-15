@@ -8,9 +8,8 @@ Cite as : []
 
 - [Environment](#environment)
 - [Data processing scripts overview](#data-processing-scripts-overview)
-- [Validation screens](#validation-screens)
-- [Clinical trials scripts](#clinical-trials-scripts)
-- [Shared library](#shared-library-lib)
+- [Validation screen analysis](#validation-screen-analysis)
+- [Clinical trial dataset analysis](#clinical-trial-dataset-analysis)
 - [Execution Order](#execution-order)
 - [Data Sources](#data-sources)
 - [Pre-generated Data Files](#pre-generated-data-files)
@@ -46,7 +45,7 @@ See [Execution Order](#execution-order) for how to run these scripts.
 
 The empirical top-k ranking analysis (Fig. 6B) is implemented per validation screen via `lib/topk.py`; run `validation/lloyd/06_run_topk.py` and `validation/knoll/05_run_topk.py`.
 
-## Validation screens
+## Validation screen analysis
 
 Two independent CRISPR resistance screens not seen during training are evaluated against the trained RF model using the shared `lib/` modules. Each validation folder contains screen-specific configuration plus thin runner scripts that invoke shared library functions — no duplicated feature extraction or evaluation code.
 
@@ -66,7 +65,7 @@ Two independent CRISPR resistance screens not seen during training are evaluated
 | `05_run_topk.py` / `06_run_topk.py` | 06 | 05 | Top-k prioritization Monte Carlo — calls `lib.topk.run_screen_topk`. |
 | `06_run_panel.py` / `07_run_panel.py` | 07 | 06 | Side-by-side panel: ROC curve (left) + top-k (right). Requires eval + topk JSON first. |
 
-## Clinical trials scripts
+## Clinical trial dataset analysis
 
 Clinical-trial biomarker–target validation pipeline applied to PRMT5–MTAP inhibitor candidates.
 
