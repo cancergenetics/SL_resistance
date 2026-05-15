@@ -86,6 +86,8 @@ Single source-of-truth implementation of feature extraction, RF evaluation, and 
 
 Run scripts in the order below. Main pipeline is strict (each step reads prior output). Validation and clinical-trials pipelines depend on the main pipeline finishing through `11_ML.py` (which produces the training matrix consumed downstream); they are independent of each other and can be run in any order or in parallel.
 
+> **Starting point — resistance screen files:** The main pipeline begins with `01_resistance_screen_data_preprocessing.py`, which reads the processed screen files from `input_data/1_resistance_screens/`. These files are already included in the repository (see [Pre-generated Data Files](#pre-generated-data-files)) and can be used directly without any additional steps. Alternatively, if you wish to reproduce the screen files from scratch, each screen has a dedicated raw data analysis script under `input_data/0_raw_data_analysis/<screen>/`. Download the corresponding supplementary files listed in the [Data Sources](#data-sources) section, place them in the appropriate folder, and run the script to regenerate the processed output.
+
 ### 1. Main pipeline
 
 ```bash
