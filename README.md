@@ -4,6 +4,17 @@ This repository contains Python scripts and files for data processing and analys
 
 Cite as : []
 
+## Contents
+
+- [Environment](#environment)
+- [Data processing scripts overview](#data-processing-scripts-overview)
+- [Validation screens](#validation-screens)
+- [Clinical trials scripts](#clinical-trials-scripts)
+- [Shared library](#shared-library-lib)
+- [Execution Order](#execution-order)
+- [Data Sources](#data-sources)
+- [Pre-generated Data Files](#pre-generated-data-files)
+
 ## Environment
 
 The code was developed and tested using a Conda environment with **Python 3.12**.
@@ -168,7 +179,7 @@ cd ..
 | Gene essentiality | `input_data/DepMap` | `CRISPRGeneEffect.csv` | Genome-scale CRISPR dependency profiles (DepMap 23Q4) | [DepMap](https://depmap.org/portal/data_page/?tab=allData) |
 | Mouse-human orthology | `input_data/Ensembl` | `mouse_human_orthologs_ensembl.tsv` | Mouse → human ortholog table from Ensembl BioMart (cached locally) | [Ensembl BioMart](https://mart.ensembl.org/biomart/martview) |
 
-### Training CRISPR resistance screens
+### CRISPR screens in training dataset
 
 All screen files are in `input_data/1_resistance_screens/` in `[Class, Gene]` format.
 
@@ -185,7 +196,6 @@ All screen files are in `input_data/1_resistance_screens/` in `[Class, Gene]` fo
 | `noordermeer_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | [Noordermeer et al., 2018](https://www.nature.com/articles/s41586-018-0340-7) (Supp. Table 1) |
 | `dev_BRCA1_PARP1_screen.xlsx` | BRCA1–PARP1 | [Dev et al., 2018](https://www.nature.com/articles/s41556-018-0140-1) (Supp. Table 1) |
 | `wang_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | [Wang et al., 2017](https://www.sciencedirect.com/science/article/pii/S2211124717300682) (Supp. Table 1) |
-| `yu_KRAS_MEK_screen.xlsx` | KRAS–MEK1/2 | [Yu et al., 2022](https://www.nature.com/articles/s41388-021-02077-w) (Supp. Table 1) |
 | `clements_BRCA2_PARP1_screen.xlsx` | BRCA2–PARP1 | [Clements et al., 2020](https://www.nature.com/articles/s41467-020-19961-w) (Supp. Data-2) |
 | `gallo_CCNE1_PKMYT1_screen.xlsx` | CCNE1–PKMYT1 | [Gallo et al., 2022](https://www.nature.com/articles/s41586-022-04638-9) (Supp. Table 1) |
 
@@ -210,7 +220,6 @@ Defines the 11 synthetic-lethal biomarker–target pairs evaluated in the clinic
 
 ### HGNC-mapped PPI analysis outputs (`input_data/2_outputs_with_hgnc/`)
 
-| File | Produced by | Used by | Description |
-|------|-------------|---------|-------------|
-| `analysis_pair_string.csv` | `02_STRING_interaction_overlap_analysis.py` | `04_interaction_overlap_graphs.py`, `05_randomness_analysis.py` | Per-gene STRING PPI overlap scores for each SL pair × screen combination, with HGNC-resolved symbols. Stores whether each gene shares a PPI partner with the biomarker or target in the STRING network (medium confidence ≥ 400). |
-| `analysis_pair_biogrid.csv` | `03_BIOGRID_interaction_overlap_analysis.py` | `04_interaction_overlap_graphs.py`, `05_randomness_analysis.py` | Same as above using BioGRID physical interactions. Used alongside the STRING file to produce the interaction enrichment figures and random network comparisons. |
+`analysis_pair_string.csv` is produced by `02_STRING_interaction_overlap_analysis.py` and stores per-gene STRING PPI overlap scores for each SL pair × screen combination with HGNC-resolved symbols, recording whether each gene shares a PPI partner with the biomarker or target in the STRING network (medium confidence ≥ 400). It is consumed by `04_interaction_overlap_graphs.py` and `05_randomness_analysis.py`.
+
+`analysis_pair_biogrid.csv` is the equivalent file built from BioGRID physical interactions, produced by `03_BIOGRID_interaction_overlap_analysis.py` and used by the same downstream scripts to produce interaction enrichment figures and random network comparisons.
