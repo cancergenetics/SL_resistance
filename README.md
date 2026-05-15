@@ -41,8 +41,8 @@ Two independent CRISPR resistance screens not seen during training are evaluated
 
 | Folder | SL pair | Drug | Cell context | Reference |
 |--------|---------|------|--------------|-----------|
-| `validation/lloyd/` | ATM–ATR | AZD6738 (ATRi) | Mouse mESCs (ATM WT vs KO) | [Lloyd et al., 2021](https://doi.org/10.1016/j.celrep.2021.108797) |
-| `validation/knoll/` | MTAP–PRMT5 | MRTX1719 / MRTX9768 (MTA-cooperative PRMT5i) | NSCLC (LU99, SW1573) | [Knoll et al., 2025](https://aacrjournals.org/cancerres/article/85/18/3518) |
+| `validation/lloyd/` | ATM–ATR | AZD6738 (ATRi) | Mouse mESCs (ATM WT vs KO) | [Lloyd et al., 2021](https://academic.oup.com/nar/article/49/15/8665/6331679) |
+| `validation/knoll/` | MTAP–PRMT5 | MRTX1719 / MRTX9768 (MTA-cooperative PRMT5i) | NSCLC (LU99, SW1573) | [Knoll et al., 2025](https://aacrjournals.org/cancerres/article/85/18/3518/764451/CRISPR-Drug-Combinatorial-Screening-Identifies) |
 
 | Script | Lloyd | Knoll | Brief description |
 |--------|-------|-------|-------------------|
@@ -182,8 +182,8 @@ cd ..
 
 | Category | Path | File | SL Pair | Description | Reference |
 |---------|------|------|--------|-------------|-----------|
-| Validation screen | `validation/lloyd/raw_data` | `Supplementary Table 1.xlsx` | ATM–ATR | Genome-wide CRISPR resistance screen in ATM-WT and ATM-KO mouse mESCs treated with AZD6738 (ATR inhibitor); IC10 and IC90 doses, SUM and REP MAGeCK analysis variants | [Lloyd et al., 2021](https://www.cell.com/cell-reports/fulltext/S2211-1247(21)00217-6) (Supp. Table 1) |
-| Validation screen | `validation/knoll/raw_data` | `knoll_raw_data.csv` | MTAP–PRMT5 | Paralog + single-gene CRISPR screen in NSCLC cell lines (LU99, SW1573) treated with MTA-cooperative PRMT5 inhibitors (MRTX1719, MRTX9768); LFC differences (MRTXi vs DMSO) per cell line + AvgDiff | [Knoll et al., 2025](https://aacrjournals.org/cancerres/article/85/18/3518) (Supp. Tables S2, S3) |
+| Validation screen | `validation/lloyd/raw_data` | `Supplementary Table 1.xlsx` | ATM–ATR | Genome-wide CRISPR resistance screen in ATM-WT and ATM-KO mouse mESCs treated with AZD6738 (ATR inhibitor); IC10 and IC90 doses, SUM and REP MAGeCK analysis variants | [Lloyd et al., 2021](https://academic.oup.com/nar/article/49/15/8665/6331679) (Supp. Table 1) |
+| Validation screen | `validation/knoll/raw_data` | `knoll_raw_data.csv` | MTAP–PRMT5 | Paralog + single-gene CRISPR screen in NSCLC cell lines (LU99, SW1573) treated with MTA-cooperative PRMT5 inhibitors (MRTX1719, MRTX9768); LFC differences (MRTXi vs DMSO) per cell line + AvgDiff | [Knoll et al., 2025](https://aacrjournals.org/cancerres/article/85/18/3518/764451/CRISPR-Drug-Combinatorial-Screening-Identifies) (Supp. Tables S2, S3) |
 
 ## Pre-generated Data Files
 
