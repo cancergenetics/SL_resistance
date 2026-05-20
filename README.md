@@ -216,8 +216,10 @@ Each file contains genome-wide gene-level resistance annotations derived from pu
 
 Defines the 11 synthetic-lethal biomarker–target pairs evaluated in the clinical trials pipeline (e.g., MSH6/WRN, CCNE1/PKMYT1, BRCA1/ATR). Each row specifies a biomarker gene, a primary drug target, and optionally a secondary target. Read by `clinical_trials/01_ML_data_preprocessing.py` as the entry point for the clinical prediction pipeline.
 
-### HGNC-mapped PPI analysis outputs (`input_data/2_outputs_with_hgnc/`)
+### SL pair analysis configuration files (`input_data/2_outputs_with_hgnc/`)
 
-`analysis_pair_string.csv` is produced by `02_STRING_interaction_overlap_analysis.py` and stores per-gene STRING PPI overlap scores for each SL pair × screen combination with HGNC-resolved symbols, recording whether each gene shares a PPI partner with the biomarker or target in the STRING network (medium confidence ≥ 400). It is consumed by `04_interaction_overlap_graphs.py` and `05_randomness_analysis.py`.
+These two files define which biomarker–target pairs are analysed in the PPI overlap and random network steps. They are committed to the repository and read directly by `05_randomness_analysis.py` and the interaction overlap scripts.
 
-`analysis_pair_biogrid.csv` is the equivalent file built from BioGRID physical interactions, produced by `03_BIOGRID_interaction_overlap_analysis.py` and used by the same downstream scripts to produce interaction enrichment figures and random network comparisons.
+**`analysis_pair_string.csv`** — columns: `protein_ids`, `pair_name`, `screen_prefix`, `input_filename`. Each row specifies one SL pair to analyse against the STRING network. `protein_ids` contains semicolon-separated Ensembl protein IDs for the biomarker and target; `pair_name` is the label used for output filenames (e.g. `PTEN_PIK3CB`); `screen_prefix` identifies the CRISPR screen; `input_filename` points to the HGNC-annotated screen file (blank = auto-derived from prefix and pair name).
+
+**`analysis_pair_biogrid.csv`** — identical structure but uses `protein_names` (semicolon-separated HGNC gene symbols) instead of Ensembl IDs, since BioGRID interaction lookups are symbol-based. Read by `03_BIOGRID_interaction_overlap_analysis.py` and `05_randomness_analysis.py`.
