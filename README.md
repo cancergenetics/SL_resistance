@@ -107,7 +107,7 @@ python 01_resistance_screen_data_preprocessing.py
 python 02_STRING_interaction_overlap_analysis.py
 python 03_BIOGRID_interaction_overlap_analysis.py
 python 04_interaction_overlap_graphs.py
-python 05_randomness_analysis.py
+python 05_randomness_analysis.py  # Warning: generates 1,000 random networks for STRING and BioGRID from scratch if not already present — this can take several hours. Pre-generated networks are detected automatically and skipped.
 python 06_ML_data_preprocessing.py
 python 07_feature_extraction_ppi_based.py
 python 08_feature_extraction_expression_based.py
