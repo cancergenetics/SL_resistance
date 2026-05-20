@@ -347,7 +347,7 @@ plot_paired_bars(
     ytick_fontsize=22,
     annotation_fontsize=20,
     legend_fontsize=24,
-    ylim_max=20,
+    ylim_max=30,
     x_rotation=45,
 )
 

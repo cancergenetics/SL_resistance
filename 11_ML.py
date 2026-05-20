@@ -369,7 +369,7 @@ features_dict = [
     {"name": "FET_SharedInteractors_Biomarker_STRING", "label": "Shared PPI of Q-B (STRING)","category": "PPI"},
     {"name": "FET_SharedInteractors_Target_STRING", "label": "Shared PPI of Q-T (STRING)","category": "PPI"},
     {"name": "BIOGRIDPhysicalInteractionQueryBiomarker", "label": "BIOGRID Physical Interaction Q-B","category": "PPI"},
-    {"name": "BIOGRIDPhysicalInteractionQueryTarget", "label": "BIOGRID Physical Q-T","category": "PPI"},
+    {"name": "BIOGRIDPhysicalInteractionQueryTarget", "label": "BIOGRID Physical Interaction Q-T","category": "PPI"},
     {"name": "ExpressionVariance", "label": "Query Gene Expression (var)","category": "Expression"},
     {"name": "EssentialityVariance", "label": "Query Gene Essentiality (var)","category": "Essentiality"},
     {"name": "EssentialityAverage", "label": "Query Gene Essentiality (avg)","category": "Essentiality"},

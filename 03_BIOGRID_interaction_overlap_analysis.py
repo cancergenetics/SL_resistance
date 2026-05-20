@@ -24,7 +24,7 @@ import warnings
 
 # File paths - adjust these to your environment
 HGNC_PATH = Path('./input_data/HGNC/hgnc_complete_set.txt')
-BIOGRID_PATH = Path('./input_data/BIOGRID/BIOGRID-MV-Physical-4.4.229.tab3.txt')
+BIOGRID_PATH = Path('./input_data/BIOGRID/BIOGRID-ALL-4.4.241.tab3.txt')
 INPUT_DIR = Path('./input_data/2_outputs_with_hgnc')
 OUTPUT_RESULTS_DIR = Path('./results/2_interaction_overlap/biogrid_results')
 OUTPUT_COUNTS_DIR = Path('./results/2_interaction_overlap/biogrid_counts')
@@ -56,8 +56,9 @@ def load_reference_data() -> Tuple[pd.DataFrame, Dict]:
     print("Loading BioGRID data...")
     biogrid = pd.read_csv(BIOGRID_PATH, sep='\t', low_memory=False)
 
-    # Filter to human-human interactions only
+    # Filter to physical human-human interactions only
     biogrid = biogrid[
+        (biogrid['Experimental System Type'] == 'physical') &
         (biogrid['Organism Name Interactor A'] == 'Homo sapiens') &
         (biogrid['Organism Name Interactor B'] == 'Homo sapiens')
     ].copy()

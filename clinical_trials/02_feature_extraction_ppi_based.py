@@ -18,7 +18,6 @@ CONFIG = {
     "pairs_xlsx": "biomarker_target_genes.xlsx",
     "hgnc_file": "../input_data/HGNC/hgnc_complete_set.txt",
     "biogrid_all_tsv": "../input_data/BIOGRID/BIOGRID-ALL-4.4.241.tab3.txt",
-    "biogrid_mv_tsv": "../input_data/BIOGRID/BIOGRID-MV-Physical-4.4.229.tab3.txt",
     "string_links": "../input_data/STRING/9606.protein.links.detailed.v12.0.txt",
     "string_info": "../input_data/STRING/9606.protein.info.v12.0.txt",
     "cancer_gene_census_csv": "../input_data/Cancer_Gene_Census/Cancer_gene_census_data.csv",
@@ -166,7 +165,7 @@ def lookup_gene_info_firstwin(gene_lookup, gene_symbol):
     return gene_lookup.get(key, (np.nan, np.nan, "NA"))
 
 
-def build_hgnc_lookup_biogrid_mv(hgnc_dict) -> Dict[str, Tuple[object, object]]:
+def build_hgnc_lookup_biogrid_physical_overwrite(hgnc_dict) -> Dict[str, Tuple[object, object]]:
     gene_lookup: Dict[str, Tuple[object, object]] = {}
     for entry in hgnc_dict:
         hgnc_id = entry.get("hgnc_id", np.nan)
@@ -346,12 +345,13 @@ def run_string_scores(
 
 
 # =========================
-# BIOGRID-MV physical binary existence
+# BIOGRID Physical binary existence (filtered from BIOGRID-ALL)
 # =========================
-def load_and_map_biogrid_mv(biogrid_mv_path: str, hgnc_dict) -> pd.DataFrame:
-    biogrid = pd.read_csv(biogrid_mv_path, sep="\t")
+def load_and_map_biogrid_physical(biogrid_all_path: str, hgnc_dict) -> pd.DataFrame:
+    biogrid = pd.read_csv(biogrid_all_path, sep="\t", low_memory=False)
     biogrid = biogrid[
-        (biogrid["Organism Name Interactor A"] == "Homo sapiens")
+        (biogrid["Experimental System Type"] == "physical")
+        & (biogrid["Organism Name Interactor A"] == "Homo sapiens")
         & (biogrid["Organism Name Interactor B"] == "Homo sapiens")
     ].copy()
 
@@ -363,7 +363,7 @@ def load_and_map_biogrid_mv(biogrid_mv_path: str, hgnc_dict) -> pd.DataFrame:
     biogrid.drop(columns="SortedInteractors", inplace=True)
     biogrid = biogrid.reset_index(drop=True)
 
-    gene_lookup = build_hgnc_lookup_biogrid_mv(hgnc_dict)
+    gene_lookup = build_hgnc_lookup_biogrid_physical_overwrite(hgnc_dict)
 
     def lookup(sym):
         key = normalize_symbol(sym)
@@ -380,7 +380,7 @@ def build_biogrid_exists_dict(biogrid: pd.DataFrame) -> Dict[Tuple[object, objec
     return d
 
 
-def run_biogrid_mv_existence(
+def run_biogrid_physical_existence(
     combined: pd.DataFrame,
     biogrid_dict: Dict[Tuple[object, object], int],
     feature_dir: str,
@@ -469,10 +469,10 @@ run_string_fet(string_unique_edges, combined, "biomarker", CONFIG["feature_dir"]
 run_string_fet(string_unique_edges, combined, "target1", CONFIG["feature_dir"])
 run_string_scores(combined, string_score_dict, CONFIG["feature_dir"])
 
-# --- BIOGRID-MV physical binary existence ---
-biogrid_mv = load_and_map_biogrid_mv(CONFIG["biogrid_mv_tsv"], hgnc_records)
-biogrid_exists_dict = build_biogrid_exists_dict(biogrid_mv)
-run_biogrid_mv_existence(combined, biogrid_exists_dict, CONFIG["feature_dir"])
+# --- BIOGRID Physical binary existence ---
+biogrid_physical = load_and_map_biogrid_physical(CONFIG["biogrid_all_tsv"], hgnc_records)
+biogrid_exists_dict = build_biogrid_exists_dict(biogrid_physical)
+run_biogrid_physical_existence(combined, biogrid_exists_dict, CONFIG["feature_dir"])
 
 # --- Cancer Gene Census TSG / oncogene labels ---
 census_df = pd.read_csv(CONFIG["cancer_gene_census_csv"], low_memory=False)

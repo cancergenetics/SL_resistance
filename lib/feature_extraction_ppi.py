@@ -4,7 +4,7 @@ Computes:
   - BIOGRID-ALL shared-interactor FET features for biomarker/target1/target2-query
   - STRING shared-interactor FET features (≥400 threshold for partner set)
   - STRING combined-score features (no threshold) for biomarker/target1/target2-query
-  - BIOGRID-MV physical-binary existence flags
+  - BIOGRID Physical binary existence flags (filtered from BIOGRID-ALL)
   - Biomarker TSG/oncogene label from the Cancer Gene Census
 
 Public entry point: extract_ppi(features_main_schema_csv, feature_output_dir, hgnc_tsv, root)
@@ -212,7 +212,7 @@ def build_string_score_dict(string_all: pd.DataFrame) -> Dict[Tuple[object, obje
     return string_dict
 
 
-def build_hgnc_lookup_biogrid_mv_overwrite(hgnc_dict) -> Dict[str, Tuple[object, object]]:
+def build_hgnc_lookup_biogrid_physical_overwrite(hgnc_dict) -> Dict[str, Tuple[object, object]]:
     gene_lookup: Dict[str, Tuple[object, object]] = {}
     for entry in hgnc_dict:
         hgnc_id = entry.get("hgnc_id", np.nan)
@@ -233,10 +233,11 @@ def build_hgnc_lookup_biogrid_mv_overwrite(hgnc_dict) -> Dict[str, Tuple[object,
     return gene_lookup
 
 
-def load_and_map_biogrid_mv(hgnc_dict, biogrid_mv_physical_tsv: Path) -> pd.DataFrame:
-    biogrid = pd.read_csv(biogrid_mv_physical_tsv, sep="\t")
+def load_and_map_biogrid_physical(hgnc_dict, biogrid_all_tsv: Path) -> pd.DataFrame:
+    biogrid = pd.read_csv(biogrid_all_tsv, sep="\t", low_memory=False)
     biogrid = biogrid[
-        (biogrid["Organism Name Interactor A"] == "Homo sapiens")
+        (biogrid["Experimental System Type"] == "physical")
+        & (biogrid["Organism Name Interactor A"] == "Homo sapiens")
         & (biogrid["Organism Name Interactor B"] == "Homo sapiens")
     ].copy()
     biogrid["SortedInteractors"] = biogrid.apply(
@@ -247,7 +248,7 @@ def load_and_map_biogrid_mv(hgnc_dict, biogrid_mv_physical_tsv: Path) -> pd.Data
     biogrid.drop(columns="SortedInteractors", inplace=True)
     biogrid = biogrid.reset_index(drop=True)
 
-    gene_lookup = build_hgnc_lookup_biogrid_mv_overwrite(hgnc_dict)
+    gene_lookup = build_hgnc_lookup_biogrid_physical_overwrite(hgnc_dict)
 
     def lookup(sym: str) -> Tuple[object, object]:
         key = normalize_symbol(sym)
@@ -272,7 +273,6 @@ def extract_ppi(features_main_schema_csv: Path, feature_output_dir: Path,
     root = Path(root)
 
     BIOGRID_ALL_TSV = root / "input_data" / "BIOGRID" / "BIOGRID-ALL-4.4.241.tab3.txt"
-    BIOGRID_MV_PHYSICAL_TSV = root / "input_data" / "BIOGRID" / "BIOGRID-MV-Physical-4.4.229.tab3.txt"
     STRING_LINKS = root / "input_data" / "STRING" / "9606.protein.links.detailed.v12.0.txt"
     STRING_INFO = root / "input_data" / "STRING" / "9606.protein.info.v12.0.txt"
     CANCER_GENE_CENSUS_CSV = root / "input_data" / "Cancer_Gene_Census" / "Cancer_gene_census_data.csv"
@@ -354,8 +354,8 @@ def extract_ppi(features_main_schema_csv: Path, feature_output_dir: Path,
     main_csv2[["ensembl_gene_id_query", "ensembl_gene_id_target2", "StringInteractionWithTarget2"]].to_csv(OUT_STRING_SCORE_TARGET2, index=False)
 
     main_csv3 = pd.read_csv(features_main_schema_csv, low_memory=False)
-    biogrid_mv = load_and_map_biogrid_mv(hgnc_dict, BIOGRID_MV_PHYSICAL_TSV)
-    biogrid_dict = build_biogrid_exists_dict(biogrid_mv)
+    biogrid_physical = load_and_map_biogrid_physical(hgnc_dict, BIOGRID_ALL_TSV)
+    biogrid_dict = build_biogrid_exists_dict(biogrid_physical)
 
     def check_bio_biomarker(row):
         pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_biomarker"])

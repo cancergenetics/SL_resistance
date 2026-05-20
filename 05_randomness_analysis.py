@@ -4,7 +4,7 @@
 # # Randomness Analysis — Degree-Preserving Random Networks
 # 
 # This notebook:
-# 1. **Generates** 1,000 degree-preserving random networks for STRING and BioGRID
+# 1. **Generates** 1,000 degree-preserving random networks for STRING and BioGRID (configuration model)
 # 2. **Runs** interaction overlap analysis against each random network for every screen
 # 3. **Merges** per-screen random results into a single file
 # 4. **Plots** histograms comparing the real network to the random distribution
@@ -28,7 +28,7 @@ np.random.seed(42)
 HGNC_PATH = Path('input_data/HGNC/hgnc_complete_set.txt')
 STRING_LINKS_PATH = Path('input_data/STRING/9606.protein.links.detailed.v12.0.txt')
 STRING_INFO_PATH = Path('input_data/STRING/9606.protein.info.v12.0.txt')
-BIOGRID_PATH = Path('input_data/BIOGRID/BIOGRID-MV-Physical-4.4.229.tab3.txt')
+BIOGRID_PATH = Path('input_data/BIOGRID/BIOGRID-ALL-4.4.241.tab3.txt')
 INPUT_DIR = Path('input_data/2_outputs_with_hgnc')
 
 STRING_RANDOM_DIR = Path('input_data/4_randomness/string_random_networks')
@@ -110,6 +110,7 @@ print(f"Loaded {len(STRING_FILTERED):,} STRING interactions (score >= {MIN_COMBI
 print("Loading BioGRID data...")
 BIOGRID = pd.read_csv(BIOGRID_PATH, sep='\t', low_memory=False)
 BIOGRID = BIOGRID[
+    (BIOGRID['Experimental System Type'] == 'physical') &
     (BIOGRID['Organism Name Interactor A'] == 'Homo sapiens') &
     (BIOGRID['Organism Name Interactor B'] == 'Homo sapiens')
 ].copy()
@@ -130,7 +131,7 @@ print(f"Loaded {len(BIOGRID):,} BioGRID human interactions")
 
 
 def generate_random_networks(edge_df, col_a, col_b, output_dir, prefix, n_random=N_RANDOM):
-    """Generate degree-preserving random networks using NetworkX.
+    """Generate degree-preserving random networks using the configuration model.
 
     Parameters
     ----------
@@ -143,6 +144,7 @@ def generate_random_networks(edge_df, col_a, col_b, output_dir, prefix, n_random
     edge_list = list(zip(edge_df[col_a], edge_df[col_b]))
     G = nx.Graph()
     G.add_edges_from(edge_list)
+    G.remove_edges_from(nx.selfloop_edges(G))  # remove self-loops before degree extraction
 
     node_ids = list(G.nodes())
     node_degrees = [G.degree(n) for n in node_ids]
@@ -153,7 +155,11 @@ def generate_random_networks(edge_df, col_a, col_b, output_dir, prefix, n_random
     for i in range(n_random):
         if (i + 1) % 100 == 0:
             print(f"  {i + 1}/{n_random}")
-        r = nx.expected_degree_graph(node_degrees,seed=42 + i, selfloops=False)
+        # Configuration model: exact degree sequence preserved.
+        # Returns MultiGraph (parallel edges + self-loops possible) → convert to simple graph.
+        r = nx.configuration_model(node_degrees, seed=42 + i)
+        r = nx.Graph(r)  # removes parallel edges
+        r.remove_edges_from(nx.selfloop_edges(r))
         out_path = os.path.join(output_dir, f'{prefix}_{i}.txt')
         with open(out_path, 'w') as f:
             for e in r.edges:
@@ -396,12 +402,12 @@ def plot_random_histogram(merged_df, real_label, save_path,
     plt.hist(random_sums, bins=20, edgecolor='black', linewidth=0)
     plt.xlabel("number of resistance genes connected to biomarker or target", fontsize=xlabel_fontsize)
 
-    plt.axvline(real_network, color=OI_BLACK, linestyle='dashed', linewidth=2,
-                label=f"Real {real_label} network")
     if val_10 is not None:
-        plt.axvline(val_10, color=OI_ORANGE, linestyle='dashed', linewidth=2, label="p < 0.01")
+        plt.axvline(val_10, color=OI_ORANGE, linestyle='dashed', linewidth=2, label="p < 0.01", zorder=2)
     if val_50 is not None:
-        plt.axvline(val_50, color=OI_PURPLE, linestyle='dashed', linewidth=2, label="p < 0.05")
+        plt.axvline(val_50, color=OI_PURPLE, linestyle='dashed', linewidth=4, label="p < 0.05", zorder=3)
+    plt.axvline(real_network, color=OI_BLACK, linestyle='solid', linewidth=2,
+                label=f"Real {real_label} network", zorder=4)
     plt.legend()
     plt.tight_layout()
     plt.savefig(save_path, dpi=dpi)

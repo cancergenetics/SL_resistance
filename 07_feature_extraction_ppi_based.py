@@ -15,7 +15,7 @@ from typing import Dict, Tuple, Optional
 HGNC_TSV = "input_data/HGNC/hgnc_complete_set.txt"
 
 BIOGRID_ALL_TSV = "input_data/BIOGRID/BIOGRID-ALL-4.4.241.tab3.txt"
-BIOGRID_MV_PHYSICAL_TSV = "input_data/BIOGRID/BIOGRID-MV-Physical-4.4.229.tab3.txt"
+BIOGRID_PHYSICAL_TSV = "input_data/BIOGRID/BIOGRID-ALL-4.4.241.tab3.txt"  # physical interactions filtered from BIOGRID-ALL
 
 STRING_LINKS = "input_data/STRING/9606.protein.links.detailed.v12.0.txt"
 STRING_INFO  = "input_data/STRING/9606.protein.info.v12.0.txt"
@@ -288,9 +288,9 @@ def build_string_score_dict(string_all: pd.DataFrame) -> Dict[Tuple[object, obje
 
 
 # ==========================================================
-# E) BIOGRID-MV: overwrite official symbol mapping + existence flags
+# E) BIOGRID Physical: overwrite official symbol mapping + existence flags
 # ==========================================================
-def build_hgnc_lookup_biogrid_mv_overwrite(hgnc_dict) -> Dict[str, Tuple[object, object]]:
+def build_hgnc_lookup_biogrid_physical_overwrite(hgnc_dict) -> Dict[str, Tuple[object, object]]:
     gene_lookup = {}
     for entry in hgnc_dict:
         hgnc_id = entry.get("hgnc_id", np.nan)
@@ -315,9 +315,10 @@ def build_hgnc_lookup_biogrid_mv_overwrite(hgnc_dict) -> Dict[str, Tuple[object,
     return gene_lookup
 
 
-def load_and_map_biogrid_mv(hgnc_dict) -> pd.DataFrame:
-    biogrid = pd.read_csv(BIOGRID_MV_PHYSICAL_TSV, sep="\t")
+def load_and_map_biogrid_physical(hgnc_dict) -> pd.DataFrame:
+    biogrid = pd.read_csv(BIOGRID_ALL_TSV, sep="\t", low_memory=False)
     biogrid = biogrid[
+        (biogrid["Experimental System Type"] == "physical") &
         (biogrid["Organism Name Interactor A"] == "Homo sapiens") &
         (biogrid["Organism Name Interactor B"] == "Homo sapiens")
     ].copy()
@@ -330,7 +331,7 @@ def load_and_map_biogrid_mv(hgnc_dict) -> pd.DataFrame:
     biogrid.drop(columns="SortedInteractors", inplace=True)
     biogrid = biogrid.reset_index(drop=True)
 
-    gene_lookup = build_hgnc_lookup_biogrid_mv_overwrite(hgnc_dict)
+    gene_lookup = build_hgnc_lookup_biogrid_physical_overwrite(hgnc_dict)
 
     def lookup(sym: str) -> Tuple[object, object]:
         key = normalize_symbol(sym)
@@ -448,11 +449,11 @@ def main() -> None:
     )
 
     # --------------------------
-    # BIOGRID MV existence outputs
+    # BIOGRID Physical existence outputs
     # --------------------------
     main_csv3 = pd.read_csv(MAIN_DATASET_CSV, low_memory=False)
-    biogrid_mv = load_and_map_biogrid_mv(hgnc_dict)
-    biogrid_dict = build_biogrid_exists_dict(biogrid_mv)
+    biogrid_physical = load_and_map_biogrid_physical(hgnc_dict)
+    biogrid_dict = build_biogrid_exists_dict(biogrid_physical)
 
     def check_bio_biomarker(row):
         pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_biomarker"])
