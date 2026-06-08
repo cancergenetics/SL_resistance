@@ -112,12 +112,12 @@ FEATURE_COLS = [
 TARGET_COL = "Class_Processed"
 
 RF_KW = dict(
-    n_estimators=1000,
-    max_features=1,
-    max_depth=15,
+    n_estimators=300,
+    max_features="sqrt",
+    max_depth=None,
     min_samples_leaf=4,
     random_state=42,
-    class_weight={0: 1, 1: 5},
+    class_weight={0: 1, 1: 10},
     n_jobs=-1,
 )
 

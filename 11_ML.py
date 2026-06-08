@@ -527,11 +527,11 @@ mean_fpr = np.linspace(0, 1, 100)
 mean_recall = np.linspace(0, 1, 100)
 
 rf = RandomForestClassifier(
-    n_estimators=1000,
-    max_features=1,
-    max_depth=15,
+    n_estimators=300,
+    max_features="sqrt",
+    max_depth=None,
     min_samples_leaf=4,
-    random_state=42,class_weight={0: 1, 1: 5},n_jobs=-1
+    random_state=42,class_weight={0: 1, 1: 10},n_jobs=-1
 )
 
 for train_idx, test_idx in cv.split(X, y):
@@ -674,11 +674,11 @@ def compare_rf_models_by_sl_pair_groups(
         y_test = test[target_col]
 
         rf = RandomForestClassifier(
-            n_estimators=1000,
-            max_features=1,
-            max_depth=15,
+            n_estimators=300,
+            max_features="sqrt",
+            max_depth=None,
             min_samples_leaf=4,
-            random_state=42,class_weight={0: 1, 1: 5},n_jobs=-1
+            random_state=42,class_weight={0: 1, 1: 10},n_jobs=-1
         )
         
         rf.fit(X_train, y_train)
@@ -825,11 +825,11 @@ def compare_rf_models_by_inhibitors(
         y_test = test[target_col]
 
         rf = RandomForestClassifier(
-                n_estimators=1000,
-                max_features=1,
-                max_depth=15,
+                n_estimators=300,
+                max_features="sqrt",
+                max_depth=None,
                 min_samples_leaf=4,
-                random_state=42,class_weight={0: 1, 1: 5},n_jobs=-1
+                random_state=42,class_weight={0: 1, 1: 10},n_jobs=-1
             )
         rf.fit(X_train, y_train)
 
@@ -975,11 +975,11 @@ def compare_rf_models_by_slpair(
             continue
 
         rf = RandomForestClassifier(
-                n_estimators=1000,
-                max_features=1,
-                max_depth=15,
+                n_estimators=300,
+                max_features="sqrt",
+                max_depth=None,
                 min_samples_leaf=4,
-                random_state=42,class_weight={0: 1, 1: 5},n_jobs=-1
+                random_state=42,class_weight={0: 1, 1: 10},n_jobs=-1
             )
         
         rf.fit(X_train, y_train)
