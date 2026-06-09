@@ -7,6 +7,8 @@
 *.pdf
 *.json
 .DS_Store
+__pycache__/
+*.pyc
 
 # Exception: processed resistance screen outputs
 !input_data/1_resistance_screens/*.xlsx
