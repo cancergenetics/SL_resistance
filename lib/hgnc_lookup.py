@@ -2,8 +2,12 @@
 
 Resolves human gene symbols to HGNC ID + Entrez + Ensembl gene ID. Tries:
   1. Approved `symbol` exact match
-  2. `alias_symbol` lookup
-  3. `prev_symbol` lookup
+  2. `prev_symbol` lookup
+  3. `alias_symbol` lookup
+
+A former official (previous) symbol takes precedence over an informal alias,
+so a symbol that is a previous symbol of one gene and an alias of another
+resolves to the gene for which it was the official name.
 
 Public entry point: build_hgnc_lookup(genes, hgnc_tsv) -> DataFrame indexed by gene
 """
@@ -35,10 +39,10 @@ def build_hgnc_lookup(genes, hgnc_tsv: Path) -> pd.DataFrame:
     for g in sorted(genes):
         if g in approved.index:
             r = approved.loc[g]
-        elif g in alias_map and alias_map[g] in approved.index:
-            r = approved.loc[alias_map[g]]
         elif g in prev_map and prev_map[g] in approved.index:
             r = approved.loc[prev_map[g]]
+        elif g in alias_map and alias_map[g] in approved.index:
+            r = approved.loc[alias_map[g]]
         else:
             r = pd.Series({"hgnc_id": np.nan, "entrez_id": np.nan, "ensembl_gene_id": np.nan})
         rows.append((g, r["hgnc_id"], r["entrez_id"], r["ensembl_gene_id"]))
