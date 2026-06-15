@@ -9,7 +9,6 @@ KNOLL          = ROOT / "validation" / "knoll"
 RAW_DATA       = KNOLL / "raw_data"
 DATA           = KNOLL / "data"
 RESULTS        = KNOLL / "results"
-FEATURE_OUTPUT = KNOLL / "feature_output"
 
 BIOMARKER_GENE = "MTAP"
 TARGET1_GENE   = "PRMT5"
@@ -40,6 +39,14 @@ TRAIN_CSV = (
 
 FEATURES_MAIN_SCHEMA_CSV    = DATA / "features_main_schema.csv"
 FEATURES_DROPNA_DEDUP_CSV   = DATA / "features_dropna_dedup.csv"
+
+# Clinical-trials prediction CSV (features + Resistance_Score). Both the features
+# AND the model probability are sourced from here — no local retrain.
+SCORE_COL         = "Resistance_Score"
+CLINICAL_PRED_CSV = (
+    ROOT / "clinical_trials" / "predictions"
+    / "PredictingSLResistanceFeatures_MTAP_PRMT5_main_withfeatures_pred.csv"
+)
 
 LABEL_ONLY_FEATURE_COLS = [
     "StringInteractionWithBiomarker",

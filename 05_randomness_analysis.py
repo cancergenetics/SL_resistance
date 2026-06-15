@@ -18,6 +18,10 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict
+
+# Single shared HGNC resolver (strict 3-tier symbol > prev > alias, case-insensitive).
+from lib.hgnc_lookup import build_hgnc_lookup
+
 np.random.seed(42)
 
 
@@ -49,39 +53,8 @@ N_RANDOM = 1000
 
 
 # === HGNC ===
-print("Loading HGNC data...")
-hgnc = pd.read_csv(HGNC_PATH, sep='\t',
-                    usecols=['hgnc_id', 'symbol', 'prev_symbol',
-                             'ensembl_gene_id', 'alias_symbol', 'entrez_id'],
-                    low_memory=False)
-
-def build_gene_lookup(hgnc_df):
-    """Map gene symbols (including aliases) to (hgnc_id, ensembl_id, entrez_id)."""
-    lookup = {}
-    def norm(s):
-        return s.strip().upper() if isinstance(s, str) else None
-    for _, row in hgnc_df.iterrows():
-        hgnc_id = row.get('hgnc_id', np.nan)
-        ensembl_id = row.get('ensembl_gene_id', np.nan)
-        entrez_id = str(int(row['entrez_id'])) if pd.notnull(row.get('entrez_id')) else 'NA'
-        symbols = []
-        if pd.notnull(row.get('symbol')):
-            symbols.append(norm(row['symbol']))
-        if pd.notnull(row.get('prev_symbol')):
-            symbols.extend(norm(s) for s in str(row['prev_symbol']).split('|'))
-        if pd.notnull(row.get('alias_symbol')):
-            symbols.extend(norm(s) for s in str(row['alias_symbol']).split('|'))
-        for sym in symbols:
-            if sym and sym not in lookup:
-                lookup[sym] = (hgnc_id, ensembl_id, entrez_id)
-    return lookup
-
-GENE_LOOKUP = build_gene_lookup(hgnc)
-print(f"Built {len(GENE_LOOKUP):,} gene symbol mappings")
-
-def lookup_gene_info(gene_symbol):
-    key = gene_symbol.strip().upper() if isinstance(gene_symbol, str) else None
-    return GENE_LOOKUP.get(key, (np.nan, np.nan, 'NA'))
+# The shared gene lookup is built AFTER STRING + BioGRID load (over their partner
+# symbols), using lib.hgnc_lookup — see the block right after the BioGRID load below.
 
 
 
@@ -123,6 +96,24 @@ BIOGRID = BIOGRID.drop_duplicates(subset='sorted_pair', keep='first')
 BIOGRID = BIOGRID.drop(columns='sorted_pair').reset_index(drop=True)
 
 print(f"Loaded {len(BIOGRID):,} BioGRID human interactions")
+
+
+# === Shared HGNC lookup (lib.hgnc_lookup; strict 3-tier, case-insensitive) ===
+# Built over every partner symbol that can appear: STRING preferred_names + BioGRID
+# official symbols. Same resolver as 01/02/03 so mappings are identical pipeline-wide.
+_partner_symbols = pd.unique(pd.concat([
+    STRING_INFO['preferred_name'],
+    BIOGRID['Official Symbol Interactor A'],
+    BIOGRID['Official Symbol Interactor B'],
+], ignore_index=True).dropna())
+GENE_LOOKUP = build_hgnc_lookup(_partner_symbols, HGNC_PATH)
+print(f"Built {len(GENE_LOOKUP):,} gene symbol mappings (lib.hgnc_lookup)")
+
+def lookup_gene_info(gene_symbol):
+    if isinstance(gene_symbol, str) and gene_symbol in GENE_LOOKUP.index:
+        r = GENE_LOOKUP.loc[gene_symbol]
+        return (r["hgnc_id"], r["ensembl_gene_id"], r["entrez_id"])
+    return (np.nan, np.nan, "NA")
 
 
 # ## Part 1 — Generate 1,000 Random Networks

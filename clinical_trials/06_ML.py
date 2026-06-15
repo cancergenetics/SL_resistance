@@ -22,10 +22,6 @@ CONFIG = {
     "score_column": "Resistance_Score",
     "target_column": "Class_Processed",
 }
-
-# Single-source feature definition — copied verbatim from 11_ML.ipynb.
-# Any drift between training and clinical inference is caught by the
-# assertion in `predict_for_pair`.
 FEATURES_DICT: List[Dict[str, str]] = [
     {"name": "StringInteractionWithBiomarker", "label": "STRING score Q-B", "category": "PPI"},
     {"name": "StringInteractionWithTarget", "label": "STRING score Q-T", "category": "PPI"},
@@ -38,11 +34,12 @@ FEATURES_DICT: List[Dict[str, str]] = [
     {"name": "FET_SharedInteractors_Target_BIOGRID", "label": "Shared PPI of Q-T (BIOGRID)", "category": "PPI"},
     {"name": "FET_SharedInteractors_Biomarker_STRING", "label": "Shared PPI of Q-B (STRING)", "category": "PPI"},
     {"name": "FET_SharedInteractors_Target_STRING", "label": "Shared PPI of Q-T (STRING)", "category": "PPI"},
-    {"name": "BIOGRIDPhysicalInteractionQueryBiomarker", "label": "BIOGRID Physical Interaction Q-B", "category": "PPI"},
-    {"name": "BIOGRIDPhysicalInteractionQueryTarget", "label": "BIOGRID Physical Q-T", "category": "PPI"},
     {"name": "ExpressionVariance", "label": "Query Gene Expression (var)", "category": "Expression"},
     {"name": "EssentialityVariance", "label": "Query Gene Essentiality (var)", "category": "Essentiality"},
     {"name": "EssentialityAverage", "label": "Query Gene Essentiality (avg)", "category": "Essentiality"},
+    {"name": "BIOGRIDPhysicalInteractionQueryBiomarker", "label": "BIOGRID Physical Interaction Q-B", "category": "PPI"},
+    {"name": "BIOGRIDPhysicalInteractionQueryTarget", "label": "BIOGRID Physical Q-T", "category": "PPI"},
+    {"name": "BiomarkerType", "label": "Biomarker type (TSG/oncogene)", "category": "Annotation"},
     {"name": "Essentiality_Percentage", "label": "Query Gene Essentiality (% of cell lines)", "category": "Essentiality"},
 ]
 
@@ -97,6 +94,32 @@ def train_rf_from_main_pipeline(
     return rf
 
 
+# Columns in the training data that hold a screen's biomarker / target gene symbols.
+_GENE_ROLE_COLS = ["Biomarker", "Target1", "Target2", "Target3"]
+
+
+def train_rf_leakage_excluded(
+    train_df: pd.DataFrame,
+    feature_columns: List[str],
+    target_column: str,
+    pair_genes: set,
+) -> tuple:
+    """Train an RF for one clinical pair, EXCLUDING any training screen that shares a
+    gene (in either biomarker or target role) with the pair, to prevent leakage.
+
+    e.g. BRCA1_POLQ -> drop all training rows whose Biomarker/Target is BRCA1 or POLQ
+    (so the BRCA1_PARP1 screens are removed); ATM_ATR -> drops ARID1A_ATR (shares ATR).
+    Returns (fitted_rf, kept_df, sorted_excluded_SL_Pairs).
+    """
+    role_cols = [c for c in _GENE_ROLE_COLS if c in train_df.columns]
+    leak_mask = train_df[role_cols].isin(pair_genes).any(axis=1)
+    excluded_pairs = sorted(train_df.loc[leak_mask, "SL_Pair"].astype(str).unique())
+    kept = train_df[~leak_mask]
+    rf = build_rf_model()
+    rf.fit(kept[feature_columns].values, kept[target_column].values)
+    return rf, kept, excluded_pairs
+
+
 
 # =========================
 # Prediction
@@ -131,20 +154,31 @@ def predict_for_pair(
 
 
 def predict_all_pairs(
-    model: RandomForestClassifier,
+    train_df: pd.DataFrame,
     pairs_df: pd.DataFrame,
     feature_columns: List[str],
+    target_column: str,
     dataset_dir: str,
     predictions_dir: str,
     score_column: str,
 ) -> Dict[str, pd.DataFrame]:
+    """For each clinical pair, train a leakage-excluded RF (dropping training screens
+    sharing the pair's biomarker or target) and predict that pair's genome-wide scores."""
     results: Dict[str, pd.DataFrame] = {}
     for _, row in pairs_df.iterrows():
         biomarker = str(row["Biomarker"]).strip()
         target1 = str(row["Target"]).strip()
         sl_pair = f"{biomarker}_{target1}"
+        pair_genes = {biomarker, target1}
+
+        rf, kept, excluded = train_rf_leakage_excluded(
+            train_df, feature_columns, target_column, pair_genes
+        )
+        print(f"[{sl_pair}] leakage-excluded {len(excluded)} screen(s) {excluded} "
+              f"-> train {len(kept):,} rows (pos frac {kept[target_column].mean():.3f})")
+
         results[sl_pair] = predict_for_pair(
-            model=model,
+            model=rf,
             sl_pair=sl_pair,
             feature_columns=feature_columns,
             dataset_dir=dataset_dir,
@@ -174,19 +208,21 @@ def assemble_supplementary_xlsx(
 # =========================
 # Run
 # =========================
-rf_model = train_rf_from_main_pipeline(
-    training_csv=CONFIG["training_csv"],
-    feature_columns=FEATURE_COLUMNS,
-    target_column=CONFIG["target_column"],
-)
+# Load training data once; each pair trains its own leakage-excluded RF.
+train_df = pd.read_csv(CONFIG["training_csv"])
+for c in FEATURE_COLUMNS + [CONFIG["target_column"]]:
+    if c not in train_df.columns:
+        raise ValueError(f"Training data missing column: {c}")
+print(f"[info] Training data: {len(train_df):,} rows, {len(FEATURE_COLUMNS)} features")
 
 pairs_df = pd.read_excel(CONFIG["pairs_xlsx"])
 print(f"[info] Loaded {len(pairs_df)} biomarker-target pairs")
 
 results = predict_all_pairs(
-    model=rf_model,
+    train_df=train_df,
     pairs_df=pairs_df,
     feature_columns=FEATURE_COLUMNS,
+    target_column=CONFIG["target_column"],
     dataset_dir=CONFIG["dataset_dir"],
     predictions_dir=CONFIG["predictions_dir"],
     score_column=CONFIG["score_column"],

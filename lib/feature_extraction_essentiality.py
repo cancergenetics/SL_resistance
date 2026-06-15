@@ -1,12 +1,18 @@
-"""Shared library — DepMap essentiality feature extraction.
+"""Shared library — DepMap essentiality feature extraction CORE (single source of truth).
 
-Outputs (in feature_output_dir):
-  coessentiality_biomarker_query.csv  — gene-effect Pearson corr (query × biomarker) + variance + mean
-  coessentiality_target1_query.csv    — gene-effect Pearson corr (query × target1)
-  coessentiality_target2_query.csv    — gene-effect Pearson corr (query × target2)
-  essentiality_percentage_per_gene.csv — % DepMap samples with gene-effect < -0.6
+Holds the DepMap loading + co-essentiality computation building blocks shared by the
+main pipeline (`09_feature_extraction_essentiality_based.py`) and the clinical-trials
+pipeline (`clinical_trials/04_feature_extraction_essentiality_based.py`). Each script
+keeps only its own I/O orchestration (the main pipeline writes one combined table per
+partner; clinical writes per-SL_pair files) and imports the functions below.
 
-Public entry point: extract_essentiality(features_main_schema_csv, feature_output_dir, root)
+Everything keys on Entrez gene IDs taken from the main dataset (already resolved via
+the shared HGNC resolver in `06`), so there is no HGNC lookup here.
+
+Provides: extract_number, preprocess_depmap, compute_gene_effect_corr,
+coessentiality_variance, essentiality_average, coessentiality_lookup, to_float_series,
+essentiality_percentage_per_gene, build_coessentiality_biomarker_query,
+build_coessentiality_target_query.
 """
 
 from __future__ import annotations
@@ -45,7 +51,8 @@ def essentiality_average(depmap_matrix: pd.DataFrame) -> pd.Series:
 
 
 def to_float_series(s: pd.Series) -> pd.Series:
-    return s.astype(float)
+    # coerce so stray non-numeric / "NA" -> NaN instead of raising
+    return pd.to_numeric(s, errors="coerce").astype(float)
 
 
 def coessentiality_lookup(corr: pd.DataFrame, a: float, b: float) -> float:
@@ -97,40 +104,3 @@ def build_coessentiality_target_query(main_df: pd.DataFrame, corr: pd.DataFrame,
         lambda r: coessentiality_lookup(corr, r["entrez_id_query"], r[target_col]), axis=1
     )
     return out
-
-
-def extract_essentiality(features_main_schema_csv: Path, feature_output_dir: Path,
-                         root: Path) -> None:
-    features_main_schema_csv = Path(features_main_schema_csv)
-    feature_output_dir = Path(feature_output_dir)
-    root = Path(root)
-
-    DEPMAP_GENE_EFFECT = root / "input_data" / "DepMap" / "CRISPRGeneEffect.csv"
-    OUT_COESS_BIOMARKER = feature_output_dir / "coessentiality_biomarker_query.csv"
-    OUT_COESS_TARGET1 = feature_output_dir / "coessentiality_target1_query.csv"
-    OUT_COESS_TARGET2 = feature_output_dir / "coessentiality_target2_query.csv"
-    OUT_ESS_PERCENT = feature_output_dir / "essentiality_percentage_per_gene.csv"
-
-    feature_output_dir.mkdir(parents=True, exist_ok=True)
-
-    depmap_raw = pd.read_csv(DEPMAP_GENE_EFFECT)
-    depmap = preprocess_depmap(depmap_raw)
-    depmap.columns = depmap.columns.astype(float)
-
-    corr = compute_gene_effect_corr(depmap)
-    corr.index = corr.index.astype(float)
-    corr.columns = corr.columns.astype(float)
-
-    var_s = coessentiality_variance(depmap)
-    avg_s = essentiality_average(depmap)
-
-    main_df = pd.read_csv(features_main_schema_csv, low_memory=False)
-
-    build_coessentiality_biomarker_query(main_df, corr, var_s, avg_s).to_csv(OUT_COESS_BIOMARKER, index=False)
-    build_coessentiality_target_query(main_df, corr, "entrez_id_target1").to_csv(OUT_COESS_TARGET1, index=False)
-    build_coessentiality_target_query(main_df, corr, "entrez_id_target2").to_csv(OUT_COESS_TARGET2, index=False)
-    essentiality_percentage_per_gene(depmap, ESSENTIALITY_THRESHOLD).to_csv(OUT_ESS_PERCENT, index=False)
-
-    print("[OK] Wrote:")
-    for p in (OUT_COESS_BIOMARKER, OUT_COESS_TARGET1, OUT_COESS_TARGET2, OUT_ESS_PERCENT):
-        print(" -", p)

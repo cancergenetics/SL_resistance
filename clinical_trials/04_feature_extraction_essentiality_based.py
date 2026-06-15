@@ -3,10 +3,23 @@
 
 
 import os
-import re
+import sys
+from pathlib import Path
+from typing import List
+
 import numpy as np
 import pandas as pd
-from typing import List
+
+# Shared DepMap co-essentiality computation core.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root
+from lib.feature_extraction_essentiality import (
+    preprocess_depmap,
+    compute_gene_effect_corr,
+    coessentiality_variance,
+    essentiality_average,
+    coessentiality_lookup,
+    essentiality_percentage_per_gene,
+)
 
 # =========================
 # Configuration
@@ -20,9 +33,8 @@ CONFIG = {
 }
 
 
-
 # =========================
-# Utilities & I/O
+# Clinical-specific I/O orchestration
 # =========================
 def ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
@@ -37,64 +49,11 @@ def load_combined_clinical_main(dataset_dir: str, pairs_df: pd.DataFrame) -> pd.
     return pd.concat(frames, ignore_index=True)
 
 
-def extract_number(col_name: str) -> str:
-    match = re.search(r"\((\d+)\)", str(col_name))
-    return match.group(1) if match else str(col_name)
-
-
-def preprocess_depmap(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.rename(columns={"Unnamed: 0": "sample"}).copy()
-    df = df.set_index(df["sample"])
-    df = df.drop(columns=["sample"])
-    df.columns = [extract_number(c) for c in df.columns]
-    return df
-
-
-
-# =========================
-# Pure essentiality metrics (copy-adapted from 9_feature_extraction_essentiality_based.ipynb)
-# =========================
-def compute_gene_effect_corr(depmap_matrix: pd.DataFrame) -> pd.DataFrame:
-    return depmap_matrix.corr(method="pearson")
-
-
-def coessentiality_variance(depmap_matrix: pd.DataFrame) -> pd.Series:
-    return depmap_matrix.var(axis=0)
-
-
-def essentiality_average(depmap_matrix: pd.DataFrame) -> pd.Series:
-    return depmap_matrix.mean(axis=0)
-
-
-def coessentiality_lookup(corr: pd.DataFrame, a: float, b: float) -> float:
-    if pd.isna(a) or pd.isna(b):
-        return 0.0
-    if (a in corr.index) and (b in corr.columns):
-        return float(corr.loc[a, b])
-    return 0.0
-
-
-def essentiality_percentage_per_gene(depmap_matrix: pd.DataFrame, threshold: float) -> pd.DataFrame:
-    result = {}
-    for col in depmap_matrix.columns:
-        if pd.api.types.is_numeric_dtype(depmap_matrix[col]):
-            total = depmap_matrix[col].notna().sum()
-            if total > 0:
-                count = (depmap_matrix[col] < threshold).sum()
-                result[col] = (count / total) * 100
-            else:
-                result[col] = None
-    return pd.DataFrame(list(result.items()), columns=["entrez_id", "Essentiality_Percentage"])
-
-
-
-# =========================
-# Coessentiality builders for the combined clinical main
-# =========================
 def _to_float(s: pd.Series) -> pd.Series:
     return pd.to_numeric(s, errors="coerce").astype(float)
 
 
+# Coessentiality builders carry SL_Pair (for the per-pair split-write) — kept here.
 def build_coessentiality_biomarker_query(
     combined: pd.DataFrame,
     corr: pd.DataFrame,
@@ -136,7 +95,6 @@ def split_and_write(out: pd.DataFrame, partner: str, feature_dir: str) -> None:
         path = os.path.join(feature_dir, name)
         sub.drop(columns=["SL_Pair"]).to_csv(path, index=False)
         print(f"[OK] {path}  rows={len(sub):,}")
-
 
 
 # =========================

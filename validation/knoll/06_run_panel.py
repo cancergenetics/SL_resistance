@@ -22,13 +22,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from config import (
-    FEATURE_COLS,
     FEATURES_DROPNA_DEDUP_CSV,
     LABELS_AVG_CSV,
     RESULTS,
-    RF_KW,
+    SCORE_COL,
     TARGET_COL,
-    TRAIN_CSV,
 )
 
 plt.rcParams.update({
@@ -62,17 +60,14 @@ def main() -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
 
     print("Loading data ...")
-    train    = pd.read_csv(TRAIN_CSV, low_memory=False)
     val_base = pd.read_csv(FEATURES_DROPNA_DEDUP_CSV, low_memory=False)
     val      = relabel(val_base, LABELS_AVG_CSV, TARGET_COL)
     y        = val[TARGET_COL].values
-    print(f"  train: {train.shape}  val: {val.shape}  pos={int(y.sum())}  neg={int((y==0).sum())}")
+    print(f"  val: {val.shape}  pos={int(y.sum())}  neg={int((y==0).sum())}")
 
-    rf = RandomForestClassifier(**RF_KW)
-    rf.fit(train[FEATURE_COLS].values, train[TARGET_COL].values)
-    print("  RF trained")
-
-    probs = rf.predict_proba(val[FEATURE_COLS].values)[:, 1]
+    # Probabilities sourced from clinical MTAP_PRMT5 predictions — no local retrain.
+    probs = val[SCORE_COL].astype(float).values
+    print("  scores sourced from clinical (no retrain)")
     str_s = val["StringInteractionWithBiomarker"].fillna(0).values
 
     auroc     = float(roc_auc_score(y, probs))

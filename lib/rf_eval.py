@@ -1,17 +1,23 @@
-"""Shared library — RF evaluation against a validation screen.
+"""Shared library — evaluation of a validation screen (AUROC/AUPR + ROC/PR plots).
 
-Trains a RandomForest on `train_csv`, scores `val_features_csv`, computes
-AUROC/AUPR with bootstrap CIs, and writes ROC + PR plots (Arial, no title,
-sorted legend, STRING/Random/Baseline references).
+Two modes:
+  * Sourced (`score_col` set): the validation table already carries the model
+    probability sourced from the matching clinical-trials prediction CSV — no RF
+    is trained, the pre-computed scores are evaluated directly. Identical to a
+    local retrain because clinical and validation share TRAIN_CSV, RF
+    hyperparameters, feature order and seed.
+  * Legacy (`score_col=None`): trains a RandomForest on `train_csv`, scores
+    `val_features_csv`, and auto-detects an SL_Pair (`excl_sl_pair`) for a second
+    leakage-excluded eval.
 
-Auto-detects an SL_Pair in training data; if present, runs a second eval
-excluding those rows (leakage check).
+Both write ROC + PR plots (Arial, no title, sorted legend, STRING/Random/Baseline
+references) and AUROC/AUPR with bootstrap CIs.
 
 Public entry point:
   run_screen_eval(train_csv, val_features_csv, labels_csv, screen_name,
-                   out_plot, out_plot_excl, out_json,
-                   feature_cols, target_col, rf_kw,
-                   excl_sl_pair=None, known_hits=None) -> dict
+                   out_plot, out_json, feature_cols, target_col, rf_kw,
+                   excl_sl_pair=None, out_plot_excl=None, known_hits=None,
+                   skip_full=False, rf_color=None, score_col=None) -> dict
 """
 
 from __future__ import annotations
@@ -70,11 +76,11 @@ def relabel(val_base: pd.DataFrame, labels_csv: Path, screen_name: str,
     return val
 
 
-def eval_one(val: pd.DataFrame, rf: RandomForestClassifier, label: str,
+def eval_one(val: pd.DataFrame, probs, label: str,
              out_path: Path, feature_cols: list, target_col: str,
              screen_display_name: str, rf_color: str = None) -> dict:
     y     = val[target_col].values
-    probs = rf.predict_proba(val[feature_cols].values)[:, 1]
+    probs = np.asarray(probs, dtype=float)
     str_s = val["StringInteractionWithBiomarker"].fillna(0).values
 
     auroc, lo, hi   = bootstrap_ci(y, probs, roc_auc_score)
@@ -236,22 +242,22 @@ def run_screen_eval(
     known_hits: list = None,
     skip_full: bool = False,
     rf_color: str = None,
+    score_col: str = None,
 ) -> dict:
-    """Train RF on `train_csv`, eval on `val_features_csv` relabeled via `labels_csv`.
-    Auto-detects `excl_sl_pair` in training; if present runs second eval.
+    """Eval on `val_features_csv` relabeled via `labels_csv`.
 
-    If `skip_full=True` and `excl_sl_pair` is set: skip full-training run entirely
-    (saves one RF train + plot). Useful when only the leakage-excluded variant
-    is reportable (e.g. Lloyd ARID1A_ATR present in training).
+    If `score_col` is given, the validation table already carries the model's
+    probability (sourced from the matching clinical-trials prediction CSV); no RF
+    is trained — the sourced scores are used directly (clinical and validation
+    share the same TRAIN_CSV, RF hyperparameters, feature order and seed, so the
+    scores are identical to a local retrain). Otherwise the legacy training path
+    runs: train RF on `train_csv`, auto-detect `excl_sl_pair`, optional `skip_full`.
     """
     out_plot = Path(out_plot)
     out_json = Path(out_json)
     out_plot.parent.mkdir(parents=True, exist_ok=True)
 
     print("Loading data …")
-    train = pd.read_csv(train_csv, low_memory=False)
-    print(f"  train: {train.shape}  pos={int(train[target_col].sum())}")
-
     val_base = pd.read_csv(val_features_csv, low_memory=False)
     print(f"  val_base: {val_base.shape}")
 
@@ -263,13 +269,40 @@ def run_screen_eval(
     out_dict = {}
     val_known = val[val["Query"].isin(known_hits or [])].copy()
 
+    # --- Sourced path: clinical predictions used directly, no RF training ---
+    if score_col is not None:
+        if score_col not in val.columns:
+            raise ValueError(
+                f"score_col '{score_col}' not in validation features — re-run "
+                f"run_features so it carries the clinical prediction column."
+            )
+        probs = val[score_col].astype(float).values
+        print(f"\n=== {screen_display_name} {variant_label} (clinical-sourced scores) ===")
+        r = eval_one(val, probs, variant_label, out_plot, feature_cols, target_col,
+                     screen_display_name, rf_color=rf_color)
+        if len(val_known):
+            vk = val_known.copy()
+            vk["RF_score"] = vk[score_col].astype(float).values
+            print(f"\n=== Known-hit scores (clinical-sourced) ===")
+            print(vk[["Query", "RF_score", target_col]]
+                  .sort_values("RF_score", ascending=False).to_string(index=False))
+        out_dict[f"{variant_label}_clinical_sourced"] = r
+        out_json.write_text(json.dumps(out_dict, indent=2))
+        print(f"\n  wrote {out_json}")
+        return out_dict
+
+    # --- Legacy training path (score_col=None) ---
+    train = pd.read_csv(train_csv, low_memory=False)
+    print(f"  train: {train.shape}  pos={int(train[target_col].sum())}")
+
     if not skip_full:
         rf = RandomForestClassifier(**rf_kw)
         rf.fit(train[feature_cols].values, train[target_col].values)
         print("  RF trained (full)")
 
         print(f"\n=== {screen_display_name} {variant_label} (full training) ===")
-        r_full = eval_one(val, rf, variant_label, out_plot, feature_cols, target_col,
+        probs_full = rf.predict_proba(val[feature_cols].values)[:, 1]
+        r_full = eval_one(val, probs_full, variant_label, out_plot, feature_cols, target_col,
                           screen_display_name, rf_color=rf_color)
 
         if len(val_known):
@@ -293,7 +326,8 @@ def run_screen_eval(
             print("  RF (excl) trained")
 
             print(f"\n=== {screen_display_name} {variant_label} (excl {excl_sl_pair}) ===")
-            r_excl = eval_one(val, rf_excl, variant_label, Path(out_plot_excl),
+            probs_excl = rf_excl.predict_proba(val[feature_cols].values)[:, 1]
+            r_excl = eval_one(val, probs_excl, variant_label, Path(out_plot_excl),
                               feature_cols, target_col, screen_display_name, rf_color=rf_color)
 
             if len(val_known):

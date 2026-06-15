@@ -14,6 +14,7 @@ from config import (
     LABELS_AVG_CSV,
     RESULTS,
     RF_KW,
+    SCORE_COL,
     SCREEN_AVG,
     TARGET_COL,
     TRAIN_CSV,
@@ -22,6 +23,7 @@ from lib.topk import run_screen_topk
 
 
 def main() -> None:
+    # Scores sourced from clinical MTAP_PRMT5 predictions — no local retrain.
     run_screen_topk(
         train_csv=TRAIN_CSV,
         val_features_csv=FEATURES_DROPNA_DEDUP_CSV,
@@ -32,6 +34,7 @@ def main() -> None:
         feature_cols=FEATURE_COLS,
         target_col=TARGET_COL,
         rf_kw=RF_KW,
+        score_col=SCORE_COL,
     )
 
 

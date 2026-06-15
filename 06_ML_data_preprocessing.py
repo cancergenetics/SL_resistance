@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Tuple, Optional, List
 
+# Single shared HGNC resolver (strict 3-tier symbol > prev > alias, case-insensitive).
+from lib.hgnc_lookup import build_hgnc_lookup
+
 
 # =========================
 # Configuration
@@ -94,103 +97,51 @@ def parse_aggregated_value(x) -> bool:
 
 
 # =========================
-# Gene lookup (HGNC)
+# Gene lookup (HGNC) — delegated to the shared resolver lib.hgnc_lookup
+# (strict 3-tier symbol > prev_symbol > alias, case-insensitive). Built per-run
+# over the biomarker/target symbols inside add_id_columns_from_lookup().
 # =========================
-def build_gene_lookup(hgnc_file: str) -> Dict[str, Dict[str, Optional[str]]]:
-    """
-    Builds a symbol->IDs lookup from HGNC complete set.
-    We store:
-      hgnc_id, ensembl_gene_id, entrez_id
-    and map:
-      symbol, prev_symbol(s), alias_symbol(s) -> same ID bundle.
-    """
-    hgnc = pd.read_csv(hgnc_file, sep="\t", low_memory=False)
-
-    cols_needed = [
-        "hgnc_id", "symbol", "prev_symbol", "alias_symbol",
-        "ensembl_gene_id", "entrez_id"
-    ]
-    missing = [c for c in cols_needed if c not in hgnc.columns]
-    if missing:
-        raise ValueError(f"HGNC file missing columns: {missing}")
-
-    def split_multi(v) -> List[str]:
-        if not isinstance(v, str) or not v.strip():
-            return []
-        # HGNC often uses '|' to separate aliases
-        return [x.strip() for x in re.split(r"[|,;]", v) if x.strip()]
-
-    lookup: Dict[str, Dict[str, Optional[str]]] = {}
-
-    for _, row in hgnc[cols_needed].iterrows():
-        bundle = {
-            "hgnc_id": row.get("hgnc_id", np.nan),
-            "ensembl_gene_id": row.get("ensembl_gene_id", np.nan),
-            "entrez_id": row.get("entrez_id", np.nan),
-        }
-
-        # Normalize NA
-        for k in list(bundle.keys()):
-            if pd.isna(bundle[k]):
-                bundle[k] = None
-            else:
-                bundle[k] = str(bundle[k])
-
-        symbols = []
-        symbols += split_multi(row.get("symbol"))
-        symbols += split_multi(row.get("prev_symbol"))
-        symbols += split_multi(row.get("alias_symbol"))
-
-        for sym in symbols:
-            ns = normalize_symbol(sym)
-            if ns:
-                # First win is fine; HGNC sometimes has ambiguous aliases
-                lookup.setdefault(ns, bundle)
-
-    return lookup
-
-
-def lookup_ids(gene_lookup: Dict[str, Dict[str, Optional[str]]], symbol: Optional[str]) -> Dict[str, Optional[str]]:
-    sym = normalize_symbol(symbol)
-    if not sym:
-        return {"hgnc_id": None, "ensembl_gene_id": None, "entrez_id": None}
-    return gene_lookup.get(sym, {"hgnc_id": None, "ensembl_gene_id": None, "entrez_id": None})
 
 
 
 # =========================
 # SL-pair parsing
 # =========================
-def split_sl_pair(sl_pair: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+def split_sl_pair(sl_pair: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
     """
-    Mirrors your original logic, but made safer.
+    Mirrors your original logic, but made safer. Returns (Biomarker, Target1, Target2, Target3).
 
-    - Any pair containing MEK -> (GeneA, MEK1, MEK2)
-    - CDK4_6 special handling -> (GeneA, CDK4, CDK6)
-    - Standard: 2 genes -> (A, B, None)
-    - Standard: 3 parts -> (A, B, C)
+    - Any pair containing AKT -> (GeneA, AKT1, AKT2, AKT3)   # pan-AKT inhibitor: 3 targets
+    - Any pair containing MEK -> (GeneA, MEK1, MEK2, None)
+    - CDK4_6 special handling -> (GeneA, CDK4, CDK6, None)
+    - Standard: 2 genes -> (A, B, None, None)
+    - Standard: 3 parts -> (A, B, C, None)
     """
     if not isinstance(sl_pair, str) or not sl_pair.strip():
-        return None, None, None
+        return None, None, None, None
 
     parts = [p.strip() for p in sl_pair.split("_") if p.strip()]
 
+    # Pan-AKT inhibitor (e.g. PTEN_AKT) targets all three AKT isoforms
+    if "AKT" in parts:
+        return parts[0], "AKT1", "AKT2", "AKT3"
+
     if "MEK" in parts:
-        return parts[0], "MEK1", "MEK2"
+        return parts[0], "MEK1", "MEK2", None
 
     # Handle CDK4_6 or CDK4_6-like tokens
     # Example: NRAS_CDK4_6  -> ["NRAS","CDK4","6"]  => CDK4/CDK6
     if len(parts) >= 3 and parts[1] == "CDK4" and parts[2] in {"6", "CDK6"}:
-        return parts[0], "CDK4", "CDK6"
+        return parts[0], "CDK4", "CDK6", None
 
     if len(parts) == 2:
-        return parts[0], parts[1], None
+        return parts[0], parts[1], None, None
 
     if len(parts) == 3:
-        return parts[0], parts[1], parts[2]
+        return parts[0], parts[1], parts[2], None
 
     # Fallback: keep first, try second, ignore rest
-    return parts[0], (parts[1] if len(parts) > 1 else None), None
+    return parts[0], (parts[1] if len(parts) > 1 else None), None, None
 
 
 # =========================
@@ -348,28 +299,41 @@ def add_biomarker_target_columns(df: pd.DataFrame) -> pd.DataFrame:
     df["Biomarker"] = parsed.apply(lambda x: x[0])
     df["Target1"] = parsed.apply(lambda x: x[1])
     df["Target2"] = parsed.apply(lambda x: x[2])
+    df["Target3"] = parsed.apply(lambda x: x[3])
     return df
 
 
-def add_id_columns_from_lookup(df: pd.DataFrame, gene_lookup: Dict[str, Dict[str, Optional[str]]]) -> pd.DataFrame:
+def add_id_columns_from_lookup(df: pd.DataFrame, hgnc_file: str = HGNC_FILE) -> pd.DataFrame:
     """
-    Add HGNC/Ensembl/Entrez IDs for Biomarker/Target1/Target2 using HGNC lookup.
+    Add HGNC/Ensembl/Entrez IDs for Biomarker/Target1/Target2/Target3 using the shared
+    lib.hgnc_lookup resolver (strict 3-tier symbol > prev_symbol > alias, case-insensitive).
     """
     df = df.copy()
 
-    for role in ["biomarker", "target1", "target2"]:
-        col = role.capitalize() if role != "target1" else "Target1"
-        if role == "biomarker":
-            gene_col = "Biomarker"
-        elif role == "target1":
-            gene_col = "Target1"
-        else:
-            gene_col = "Target2"
+    role_to_col = {
+        "biomarker": "Biomarker",
+        "target1": "Target1",
+        "target2": "Target2",
+        "target3": "Target3",
+    }
 
-        ids = df[gene_col].apply(lambda s: lookup_ids(gene_lookup, s))
-        df[f"entrez_id_{role}"] = ids.apply(lambda d: d["entrez_id"])
-        df[f"hgnc_id_{role}"] = ids.apply(lambda d: d["hgnc_id"])
-        df[f"ensembl_gene_id_{role}"] = ids.apply(lambda d: d["ensembl_gene_id"])
+    # One shared lookup over every biomarker/target symbol present.
+    genes = set()
+    for gene_col in role_to_col.values():
+        genes.update(df[gene_col].dropna().astype(str))
+    lkp = build_hgnc_lookup(genes, hgnc_file)   # DataFrame indexed by gene
+
+    def _ids(sym):
+        if isinstance(sym, str) and sym in lkp.index:
+            r = lkp.loc[sym]
+            return (r["hgnc_id"], r["ensembl_gene_id"], r["entrez_id"])
+        return (None, None, None)
+
+    for role, gene_col in role_to_col.items():
+        triples = df[gene_col].apply(_ids)
+        df[f"hgnc_id_{role}"] = triples.apply(lambda t: t[0])
+        df[f"ensembl_gene_id_{role}"] = triples.apply(lambda t: t[1])
+        df[f"entrez_id_{role}"] = triples.apply(lambda t: t[2])
 
     return df
 
@@ -393,11 +357,12 @@ def reorder_columns_like_notebook(df: pd.DataFrame) -> pd.DataFrame:
 
     desired_front = (
         ["Screen", "SL_Pair"] +
-        ["Query", "Biomarker", "Target1", "Target2",
+        ["Query", "Biomarker", "Target1", "Target2", "Target3",
          "entrez_id_query", "hgnc_id_query", "ensembl_gene_id_query",
          "entrez_id_biomarker", "hgnc_id_biomarker", "ensembl_gene_id_biomarker",
          "entrez_id_target1", "hgnc_id_target1", "ensembl_gene_id_target1",
-         "entrez_id_target2", "hgnc_id_target2", "ensembl_gene_id_target2"]
+         "entrez_id_target2", "hgnc_id_target2", "ensembl_gene_id_target2",
+         "entrez_id_target3", "hgnc_id_target3", "ensembl_gene_id_target3"]
     )
 
     front = [c for c in desired_front if c in df.columns]
@@ -422,8 +387,6 @@ def build_main_ml_dataset() -> pd.DataFrame:
     """
     pairs_df = load_analysis_pairs(ANALYSIS_PAIR_STRING, ANALYSIS_PAIR_BIOGRID)
 
-    gene_lookup = build_gene_lookup(HGNC_FILE)
-
     dfs = []
     for _, row in pairs_df.iterrows():
         df = load_screen_file(
@@ -438,7 +401,7 @@ def build_main_ml_dataset() -> pd.DataFrame:
 
     combined = standardize_query_columns(combined)
     combined = add_biomarker_target_columns(combined)
-    combined = add_id_columns_from_lookup(combined, gene_lookup)
+    combined = add_id_columns_from_lookup(combined, HGNC_FILE)
     combined = add_feature_placeholders(combined)
     combined = reorder_columns_like_notebook(combined)
 

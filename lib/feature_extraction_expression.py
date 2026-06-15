@@ -1,16 +1,20 @@
-"""Shared library — GTEx co-expression feature extraction.
+"""Shared library — GTEx co-expression feature extraction CORE (single source of truth).
 
-For each (query, biomarker) and (query, target1) pair, compute:
-  - A1/A2 mean expression across GTEx tissues
-  - A1/A2 variance across tissues
-  - Spearman correlation across tissues (rank-based Pearson)
+Holds the GTEx loading + co-expression computation building blocks shared by the
+main pipeline (`08_feature_extraction_expression_based.py`) and the clinical-trials
+pipeline (`clinical_trials/03_feature_extraction_expression_based.py`). Each script
+keeps only its own I/O orchestration (the main pipeline loads GTEx per partner and
+writes one combined table per partner; clinical loads GTEx once over the union and
+writes per-SL_pair files) and imports the functions below.
 
-Public entry point: extract_expression(features_main_schema_csv, feature_output_dir, root)
+Everything keys on Ensembl gene IDs taken from the main dataset (already resolved
+via the shared HGNC resolver in `06`), so there is no HGNC lookup here.
+
+For each (A1, A2) gene pair, computes A1/A2 mean + variance expression across GTEx
+tissues and the Spearman correlation (rank-based Pearson) across tissues.
 """
 
 from __future__ import annotations
-
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -96,38 +100,3 @@ def remove_duplicates_like_notebook(df_subset: pd.DataFrame) -> pd.DataFrame:
     expr_data = expr_data.set_index("ensembl_id")
     expr_data.drop(columns=["Name"], inplace=True)
     return expr_data
-
-
-def build_pairs(main_df: pd.DataFrame, a_col: str, b_col: str) -> pd.DataFrame:
-    return main_df[[a_col, b_col]].rename(columns={a_col: "A1_ensembl", b_col: "A2_ensembl"})
-
-
-def run_one_coexpression(main_df: pd.DataFrame, a_col: str, b_col: str,
-                         out_csv: Path, gtex_gct_gz: Path) -> pd.DataFrame:
-    pairs = build_pairs(main_df, a_col, b_col)
-    genes = pd.unique(pairs[["A1_ensembl", "A2_ensembl"]].values.ravel())
-    df_genes = load_gtex_subset_for_genes(gtex_gct_gz, genes, chunksize=GTEX_CHUNKSIZE)
-    df_genes_reset = df_genes.reset_index().rename(columns={"index": "ensembl_id"})
-    expr_data = remove_duplicates_like_notebook(df_genes_reset)
-    out = CalculateExprCorrelation_Fast(pairs, expr_data)
-    out.to_csv(out_csv, index=False)
-    return out
-
-
-def extract_expression(features_main_schema_csv: Path, feature_output_dir: Path,
-                       root: Path) -> None:
-    features_main_schema_csv = Path(features_main_schema_csv)
-    feature_output_dir = Path(feature_output_dir)
-    root = Path(root)
-
-    GTEX_GCT_GZ = root / "input_data" / "GTEx" / "GTEx_Analysis_v10_RNASeQCv2.4.2_gene_tpm.gct.gz"
-    OUT_BIOMARKER = feature_output_dir / "gtex_co_expression_biomarker_query.csv"
-    OUT_TARGET1 = feature_output_dir / "gtex_co_expression_target1_query.csv"
-
-    feature_output_dir.mkdir(parents=True, exist_ok=True)
-    main_df = pd.read_csv(features_main_schema_csv, low_memory=False)
-    run_one_coexpression(main_df, "ensembl_gene_id_biomarker", "ensembl_gene_id_query",
-                         OUT_BIOMARKER, GTEX_GCT_GZ)
-    run_one_coexpression(main_df, "ensembl_gene_id_target1", "ensembl_gene_id_query",
-                         OUT_TARGET1, GTEX_GCT_GZ)
-    print("[OK] Wrote:\n -", OUT_BIOMARKER, "\n -", OUT_TARGET1)

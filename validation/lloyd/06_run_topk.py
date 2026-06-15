@@ -9,12 +9,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from config import (
-    EXCL_SL_PAIR,
     FEATURE_COLS,
     FEATURES_DROPNA_DEDUP_CSV,
     LABELS_IC90_SUM_HUMAN_CSV,
     RESULTS,
     RF_KW,
+    SCORE_COL,
     SCREEN_IC90_SUM,
     TARGET_COL,
     TRAIN_CSV,
@@ -23,6 +23,7 @@ from lib.topk import run_screen_topk
 
 
 def main() -> None:
+    # Scores sourced from clinical ATM_ATR predictions (already excl ARID1A_ATR) — no retrain.
     run_screen_topk(
         train_csv=TRAIN_CSV,
         val_features_csv=FEATURES_DROPNA_DEDUP_CSV,
@@ -33,7 +34,7 @@ def main() -> None:
         feature_cols=FEATURE_COLS,
         target_col=TARGET_COL,
         rf_kw=RF_KW,
-        excl_sl_pair=EXCL_SL_PAIR,
+        score_col=SCORE_COL,
     )
 
 

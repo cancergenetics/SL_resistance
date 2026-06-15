@@ -3,10 +3,17 @@
 
 
 import os
+import sys
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
+# Shared multi-target combine helper (single source of truth). Clinical pairs have
+# only Target1 so this collapses to Target1 verbatim — imported for parity with 10.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root
+from lib.merge_features import select_highest_or_available
 
 # =========================
 # Configuration
@@ -43,21 +50,6 @@ FEATURE_COLUMNS: List[str] = [
 # =========================
 # Utilities
 # =========================
-def select_highest_or_available(v1, v2):
-    """Pick the value with largest absolute magnitude across two targets.
-
-    Clinical pairs only have Target1, so v2 is always NaN/None and this
-    collapses to v1 verbatim. Kept for parity with main notebook 10.
-    """
-    if pd.isna(v1) and pd.isna(v2):
-        return np.nan
-    if pd.isna(v1):
-        return v2
-    if pd.isna(v2):
-        return v1
-    return max(v1, v2, key=abs)
-
-
 def read_feature_csv(feature_dir: str, filename: str) -> pd.DataFrame:
     return pd.read_csv(os.path.join(feature_dir, filename), low_memory=False)
 
@@ -134,9 +126,11 @@ def merge_one_pair(
     )
     main["BIOGRIDPhysicalInteractionQueryTarget"] = bg_t1[target_col]
 
-    # --- Biomarker TSG/oncogene label
+    # --- Biomarker loss(1) / activating(0) label
+    # Resolved at the source in 02 (classify_gene, incl. the MTAP loss-of-function
+    # override), so biomarker_type_*.csv is already 0/1 with no NaN.
     btype = read_feature_csv(feature_dir, f"biomarker_type_{sl_pair}.csv")
-    main["BiomarkerType"] = btype["TSG_Label"]
+    main["BiomarkerType"] = btype["TSG_Label"].astype(int)
 
     # --- Essentiality percentage (pair-independent lookup on entrez_id_query)
     main = main.merge(

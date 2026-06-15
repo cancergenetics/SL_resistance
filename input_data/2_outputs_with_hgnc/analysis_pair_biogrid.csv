@@ -1,6 +1,6 @@
 protein_names,pair_name,screen_prefix,input_filename
 PTEN;PIK3CB,PTEN_PIK3CB,dunn,
-PTEN;AKT1;AKT2;AKT3;AKT4,PTEN_AKT,dunn,
+PTEN;AKT1;AKT2;AKT3,PTEN_AKT,dunn,
 NRAS;CDK4;Cdk4;CDK6;Cdk6,NRAS_CDK4_6,hayes,
 BRAF;MAP2K1;MEK1;MAP2K2;MEK2,BRAF_MEK,krall,
 ATR;ARID1A,ARID1A_ATR,llorca,

@@ -844,11 +844,16 @@ def compare_rf_models_by_inhibitors(
 
         color = colors[i % len(colors)]
 
+        # Legend display: multi-isoform targets are matched on Target1 (e.g. AKT1, MEK1)
+        # but shown by their drug-class name in the figure legend.
+        _LEGEND_LABEL = {"AKT1": "AKT", "MEK1": "MEK", "CDK4": "CDK4/6"}
+        inhibitor_label = _LEGEND_LABEL.get(inhibitor, inhibitor)
+
         # Plot ROC but collect handles
         plt.subplot(1, 2, 1)
         (line_roc,) = plt.plot(
             fpr, tpr,
-            label=f"{inhibitor} (AUC = {roc_auc:.2f})",
+            label=f"{inhibitor_label} (AUC = {roc_auc:.2f})",
             linewidth=2, color=color
         )
         roc_handles.append(line_roc)
@@ -859,7 +864,7 @@ def compare_rf_models_by_inhibitors(
         plt.subplot(1, 2, 2)
         (line_pr,) = plt.plot(
             recall, precision,
-            label=f"{inhibitor} (AP = {avg_precision:.2f}, Base = {baseline_precision:.2f})",
+            label=f"{inhibitor_label} (AP = {avg_precision:.2f}, Base = {baseline_precision:.2f})",
             linewidth=2, color=color
         )
         pr_handles.append(line_pr)
@@ -917,7 +922,7 @@ def compare_rf_models_by_inhibitors(
 
 # === Usage ===
 feature_columns = main_unique.columns[-19:-1].tolist()
-inhibitors_list = ['PIK3CB', 'AKT', 'MEK1', 'PARP1', 'ATR', 'CDK4',"PKMYT1"]
+inhibitors_list = ['PIK3CB', 'AKT1', 'MEK1', 'PARP1', 'ATR', 'CDK4',"PKMYT1"]  # AKT1 = Target1 of the PTEN_AKT screen (now AKT1/AKT2/AKT3)
 
 compare_rf_models_by_inhibitors(
     main_unique,

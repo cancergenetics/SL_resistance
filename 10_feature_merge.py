@@ -13,6 +13,9 @@ import os
 import numpy as np
 import pandas as pd
 
+# Shared multi-target combine helper (single source of truth).
+from lib.merge_features import select_highest_or_available, merge_targets
+
 
 # ============================================================
 # Paths
@@ -36,25 +39,6 @@ ensure_dir(DATA_DIR)
 
 
 # ============================================================
-# Helper
-# ============================================================
-
-def select_highest_or_available(val1, val2):
-    """Pick the value with larger absolute magnitude; NaN if both NaN."""
-    if pd.isna(val1) and pd.isna(val2):
-        return np.nan
-    if pd.isna(val1):
-        return val2
-    if pd.isna(val2):
-        return val1
-    return max(val1, val2, key=abs)
-
-
-def merge_target1_target2(series1, series2):
-    return [select_highest_or_available(a, b) for a, b in zip(series1, series2)]
-
-
-# ============================================================
 # Load main schema
 # ============================================================
 
@@ -72,9 +56,11 @@ main["StringInteractionWithBiomarker"] = (
 
 string_interaction_target1 = pd.read_csv(f"{FEAT_DIR}/string_score_query_target1.csv")
 string_interaction_target2 = pd.read_csv(f"{FEAT_DIR}/string_score_query_target2.csv")
-main["StringInteractionWithTarget"] = merge_target1_target2(
+string_interaction_target3 = pd.read_csv(f"{FEAT_DIR}/string_score_query_target3.csv")
+main["StringInteractionWithTarget"] = merge_targets(
     string_interaction_target1["StringInteractionWithTarget"],
     string_interaction_target2["StringInteractionWithTarget2"],
+    string_interaction_target3["StringInteractionWithTarget3"],
 )
 main["StringInteractionWithTarget"] = (main["StringInteractionWithTarget"] / 1000).fillna(0)
 
@@ -88,9 +74,11 @@ main["CoexpressionWithBiomarker"] = gtex_coexpression_biomarker["spearman_corr"]
 
 gtex_coexpression_target1 = pd.read_csv(f"{FEAT_DIR}/gtex_co_expression_target1_query.csv")
 gtex_coexpression_target2 = pd.read_csv(f"{FEAT_DIR}/gtex_co_expression_target2_query.csv")
-main["CoexpressionWithTarget"] = merge_target1_target2(
+gtex_coexpression_target3 = pd.read_csv(f"{FEAT_DIR}/gtex_co_expression_target3_query.csv")
+main["CoexpressionWithTarget"] = merge_targets(
     gtex_coexpression_target1["spearman_corr"],
     gtex_coexpression_target2["spearman_corr"],
+    gtex_coexpression_target3["spearman_corr"],
 )
 
 main["AvgExpression"]      = gtex_coexpression_biomarker["A2_mean_expr"]
@@ -106,9 +94,11 @@ main["CoessentialityWithBiomarker"] = coessentiality_biomarker["Correlation"]
 
 coessentiality_target1 = pd.read_csv(f"{FEAT_DIR}/coessentiality_target1_query.csv")
 coessentiality_target2 = pd.read_csv(f"{FEAT_DIR}/coessentiality_target2_query.csv")
-main["CoessentialityWithTarget"] = merge_target1_target2(
+coessentiality_target3 = pd.read_csv(f"{FEAT_DIR}/coessentiality_target3_query.csv")
+main["CoessentialityWithTarget"] = merge_targets(
     coessentiality_target1["Correlation"],
     coessentiality_target2["Correlation"],
+    coessentiality_target3["Correlation"],
 )
 
 main["EssentialityVariance"] = coessentiality_biomarker["Biomarker_Essentiality_Variance"].fillna(0)
@@ -124,9 +114,11 @@ main["FET_SharedInteractors_Biomarker_BIOGRID"] = shared_ppi_biomarker_biogrid["
 
 shared_ppi_target1_biogrid = pd.read_csv(f"{FEAT_DIR}/fet_ppi_overlap_target1_query.csv")
 shared_ppi_target2_biogrid = pd.read_csv(f"{FEAT_DIR}/fet_ppi_overlap_target2_query.csv")
-main["FET_SharedInteractors_Target_BIOGRID"] = merge_target1_target2(
+shared_ppi_target3_biogrid = pd.read_csv(f"{FEAT_DIR}/fet_ppi_overlap_target3_query.csv")
+main["FET_SharedInteractors_Target_BIOGRID"] = merge_targets(
     shared_ppi_target1_biogrid["fet_ppi_overlap"],
     shared_ppi_target2_biogrid["fet_ppi_overlap"],
+    shared_ppi_target3_biogrid["fet_ppi_overlap"],
 )
 
 
@@ -139,9 +131,11 @@ main["FET_SharedInteractors_Biomarker_STRING"] = shared_ppi_biomarker_string["fe
 
 shared_ppi_target1_string = pd.read_csv(f"{FEAT_DIR}/fet_ppi_overlap_target1_query_string.csv")
 shared_ppi_target2_string = pd.read_csv(f"{FEAT_DIR}/fet_ppi_overlap_target2_query_string.csv")
-main["FET_SharedInteractors_Target_STRING"] = merge_target1_target2(
+shared_ppi_target3_string = pd.read_csv(f"{FEAT_DIR}/fet_ppi_overlap_target3_query_string.csv")
+main["FET_SharedInteractors_Target_STRING"] = merge_targets(
     shared_ppi_target1_string["fet_ppi_overlap"],
     shared_ppi_target2_string["fet_ppi_overlap"],
+    shared_ppi_target3_string["fet_ppi_overlap"],
 )
 
 
@@ -207,11 +201,12 @@ main_dropna.to_csv(OUT_DROPNA_CSV, index=False)
 # ============================================================
 
 DEDUP_SUBSET = [
-    "SL_Pair", "Query", "Biomarker", "Target1", "Target2",
+    "SL_Pair", "Query", "Biomarker", "Target1", "Target2", "Target3",
     "entrez_id_query", "hgnc_id_query", "ensembl_gene_id_query",
     "entrez_id_biomarker", "hgnc_id_biomarker", "ensembl_gene_id_biomarker",
     "entrez_id_target1", "hgnc_id_target1", "ensembl_gene_id_target1",
     "entrez_id_target2", "hgnc_id_target2", "ensembl_gene_id_target2",
+    "entrez_id_target3", "hgnc_id_target3", "ensembl_gene_id_target3",
     "StringInteractionWithBiomarker", "StringInteractionWithTarget",
     "CoexpressionWithBiomarker", "CoexpressionWithTarget", "AvgExpression",
     "CoessentialityWithBiomarker", "CoessentialityWithTarget",

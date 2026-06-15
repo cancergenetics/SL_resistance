@@ -22,14 +22,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from config import (
-    EXCL_SL_PAIR,
-    FEATURE_COLS,
     FEATURES_DROPNA_DEDUP_CSV,
     LABELS_IC90_SUM_HUMAN_CSV,
     RESULTS,
-    RF_KW,
+    SCORE_COL,
     TARGET_COL,
-    TRAIN_CSV,
 )
 
 plt.rcParams.update({
@@ -63,20 +60,14 @@ def main() -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
 
     print("Loading data ...")
-    train = pd.read_csv(TRAIN_CSV, low_memory=False)
-    train = train[train["SL_Pair"] != EXCL_SL_PAIR].reset_index(drop=True)
-    print(f"  train after excl {EXCL_SL_PAIR}: {train.shape}")
-
     val_base = pd.read_csv(FEATURES_DROPNA_DEDUP_CSV, low_memory=False)
     val      = relabel(val_base, LABELS_IC90_SUM_HUMAN_CSV, TARGET_COL)
     y        = val[TARGET_COL].values
     print(f"  val: {val.shape}  pos={int(y.sum())}  neg={int((y==0).sum())}")
 
-    rf = RandomForestClassifier(**RF_KW)
-    rf.fit(train[FEATURE_COLS].values, train[TARGET_COL].values)
-    print("  RF trained")
-
-    probs = rf.predict_proba(val[FEATURE_COLS].values)[:, 1]
+    # Probabilities sourced from clinical ATM_ATR predictions (already excl ARID1A_ATR) — no retrain.
+    probs = val[SCORE_COL].astype(float).values
+    print("  scores sourced from clinical (no retrain)")
     str_s = val["StringInteractionWithBiomarker"].fillna(0).values
 
     auroc     = float(roc_auc_score(y, probs))

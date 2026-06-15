@@ -17,6 +17,8 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root, for lib
+from lib.hgnc_lookup import build_hgnc_lookup
 from config import (
     BIOMARKER_GENE,
     DATA,
@@ -32,38 +34,6 @@ from config import (
 )
 
 
-def build_hgnc_lookup(genes: set[str]) -> pd.DataFrame:
-    hgnc = pd.read_csv(HGNC_TSV, sep="\t", low_memory=False)
-    approved = hgnc.set_index("symbol")[["hgnc_id", "entrez_id", "ensembl_gene_id"]]
-
-    alias_map: dict[str, str] = {}
-    prev_map:  dict[str, str] = {}
-    for col, store in [("alias_symbol", alias_map), ("prev_symbol", prev_map)]:
-        for sym, val in zip(hgnc["symbol"], hgnc[col]):
-            if pd.isna(val):
-                continue
-            for alt in str(val).split("|"):
-                alt = alt.strip()
-                if alt and alt not in store:
-                    store[alt] = sym
-
-    rows = []
-    for g in sorted(genes):
-        if g in approved.index:
-            r = approved.loc[g]
-        elif g in alias_map and alias_map[g] in approved.index:
-            r = approved.loc[alias_map[g]]
-        elif g in prev_map and prev_map[g] in approved.index:
-            r = approved.loc[prev_map[g]]
-        else:
-            r = pd.Series({"hgnc_id": np.nan, "entrez_id": np.nan, "ensembl_gene_id": np.nan})
-        rows.append((g, r["hgnc_id"], r["entrez_id"], r["ensembl_gene_id"]))
-
-    return pd.DataFrame(
-        rows, columns=["gene", "hgnc_id", "entrez_id", "ensembl_gene_id"]
-    ).set_index("gene")
-
-
 def main() -> None:
     DATA.mkdir(parents=True, exist_ok=True)
 
@@ -76,7 +46,7 @@ def main() -> None:
     all_genes |= set(labels["query_gene"].dropna().astype(str))
 
     print(f"Building HGNC lookup for {len(all_genes)} unique genes …")
-    lookup = build_hgnc_lookup(all_genes)
+    lookup = build_hgnc_lookup(all_genes, HGNC_TSV)   # shared 3-tier resolver
 
     out = pd.DataFrame(index=labels.index)
     out["Screen"]    = SCREEN_AVG
@@ -107,6 +77,13 @@ def main() -> None:
         out["entrez_id_target2"]         = np.nan
         out["hgnc_id_target2"]           = np.nan
         out["ensembl_gene_id_target2"]   = np.nan
+
+    # No third target for this pair (MTAP-PRMT5). Target3 columns were added to the
+    # main schema by the AKT 3-target change (PTEN_AKT -> AKT1/AKT2/AKT3); fill NaN.
+    out["Target3"]                   = np.nan
+    out["entrez_id_target3"]         = np.nan
+    out["hgnc_id_target3"]           = np.nan
+    out["ensembl_gene_id_target3"]   = np.nan
 
     out["Class"] = labels["label"].values
     for c in LABEL_ONLY_FEATURE_COLS:

@@ -13,6 +13,9 @@ from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 import warnings
 
+# Single shared HGNC resolver (strict 3-tier symbol > prev > alias, case-insensitive).
+from lib.hgnc_lookup import build_hgnc_lookup
+
 # Optional visualization imports (uncomment if needed)
 # import matplotlib.pyplot as plt
 # from matplotlib_venn import venn2, venn3
@@ -63,52 +66,20 @@ def load_reference_data() -> Tuple[pd.DataFrame, Dict]:
         (biogrid['Organism Name Interactor B'] == 'Homo sapiens')
     ].copy()
 
-    # Build gene lookup dictionary
-    print("Building gene lookup dictionary...")
-    gene_lookup = build_gene_lookup(hgnc)
+    # Build the shared HGNC lookup over every BioGRID official symbol (all PPI partner
+    # symbols), using lib.hgnc_lookup so it matches the rest of the pipeline. Returns a
+    # DataFrame indexed by gene -> hgnc_id/entrez/ensembl.
+    print("Building gene lookup (lib.hgnc_lookup, 3-tier)...")
+    partner_symbols = pd.unique(pd.concat([
+        biogrid['Official Symbol Interactor A'],
+        biogrid['Official Symbol Interactor B'],
+    ], ignore_index=True).dropna())
+    gene_lookup = build_hgnc_lookup(partner_symbols, HGNC_PATH)
 
     print(f"Loaded {len(biogrid):,} BioGRID human interactions")
     print(f"Loaded {len(gene_lookup):,} gene symbol mappings")
 
     return biogrid, gene_lookup
-
-
-def build_gene_lookup(hgnc: pd.DataFrame) -> Dict[str, Tuple]:
-    """
-    Build a dictionary mapping gene symbols (including aliases) to (hgnc_id, ensembl_id, entrez_id).
-    First symbol encountered wins (canonical symbols take priority).
-    """
-    gene_lookup = {}
-
-    def normalize(s):
-        return s.strip().upper() if isinstance(s, str) else None
-
-    for _, row in hgnc.iterrows():
-        hgnc_id = row.get('hgnc_id', np.nan)
-        ensembl_id = row.get('ensembl_gene_id', np.nan)
-        entrez_id = str(int(row['entrez_id'])) if pd.notnull(row.get('entrez_id')) else 'NA'
-
-        # Collect all symbols for this gene
-        symbols = []
-
-        # Primary symbol (highest priority)
-        if pd.notnull(row.get('symbol')):
-            symbols.append(normalize(row['symbol']))
-
-        # Previous symbols
-        if pd.notnull(row.get('prev_symbol')):
-            symbols.extend(normalize(s) for s in str(row['prev_symbol']).split('|'))
-
-        # Alias symbols
-        if pd.notnull(row.get('alias_symbol')):
-            symbols.extend(normalize(s) for s in str(row['alias_symbol']).split('|'))
-
-        # Add to lookup (first occurrence wins)
-        for sym in symbols:
-            if sym and sym not in gene_lookup:
-                gene_lookup[sym] = (hgnc_id, ensembl_id, entrez_id)
-
-    return gene_lookup
 
 
 # Load data
@@ -161,10 +132,12 @@ def get_ppi_partners(
     ppi = ppi.drop_duplicates(subset='sorted_pair', keep='first').drop(columns='sorted_pair')
     ppi = ppi.reset_index(drop=True)
 
-    # Add HGNC annotations
+    # Add HGNC annotations (gene_lookup is a DataFrame indexed by official symbol)
     def lookup(symbol):
-        key = symbol.strip().upper() if isinstance(symbol, str) else None
-        return gene_lookup.get(key, (np.nan, np.nan, 'NA'))
+        if isinstance(symbol, str) and symbol in gene_lookup.index:
+            r = gene_lookup.loc[symbol]
+            return (r["hgnc_id"], r["ensembl_gene_id"], r["entrez_id"])
+        return (np.nan, np.nan, "NA")
 
     ppi[['hgnc_id_1', 'ensembl_gene_id_1', 'entrez_id_1']] = pd.DataFrame(
         ppi[col_a].apply(lookup).tolist(), index=ppi.index

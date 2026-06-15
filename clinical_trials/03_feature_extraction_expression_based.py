@@ -3,9 +3,19 @@
 
 
 import os
-import numpy as np
-import pandas as pd
+import sys
+from pathlib import Path
 from typing import List
+
+import pandas as pd
+
+# Shared GTEx co-expression computation core.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root
+from lib.feature_extraction_expression import (
+    load_gtex_subset_for_genes,
+    CalculateExprCorrelation_Fast,
+    remove_duplicates_like_notebook,
+)
 
 # =========================
 # Configuration
@@ -19,9 +29,8 @@ CONFIG = {
 }
 
 
-
 # =========================
-# Utilities & I/O (copy-adapted from 8_feature_extraction_expression_based_refractored.ipynb)
+# Clinical-specific I/O orchestration
 # =========================
 def ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
@@ -36,94 +45,6 @@ def load_combined_clinical_main(dataset_dir: str, pairs_df: pd.DataFrame) -> pd.
     return pd.concat(frames, ignore_index=True)
 
 
-def load_gtex_subset_for_genes(
-    gtex_path: str,
-    ensembl_ids: np.ndarray,
-    chunksize: int,
-) -> pd.DataFrame:
-    keep = set([x for x in ensembl_ids if isinstance(x, str) and x.strip()])
-    df_keep = pd.DataFrame()
-    for chunk in pd.read_csv(gtex_path, sep="\t", skiprows=2, iterator=True, chunksize=chunksize):
-        chunk_df = (
-            chunk.assign(ensembl_id=chunk.Name.apply(lambda x: str(x).split(".")[0]))
-                 .drop(columns=["Description"])
-        )
-        df_keep = pd.concat(
-            [df_keep, chunk_df[chunk_df.ensembl_id.isin(keep)].set_index("ensembl_id")],
-            axis=0,
-        )
-    return df_keep
-
-
-def remove_duplicates_like_notebook(df_subset: pd.DataFrame) -> pd.DataFrame:
-    df = df_subset.copy()
-    duplicates = df[df.duplicated(subset=["ensembl_id"], keep=False)]
-    non_zero_rows = duplicates[(duplicates.iloc[:, 2:] != 0).any(axis=1)]
-    expr_data = df.drop(non_zero_rows.index)
-    expr_data = expr_data.set_index("ensembl_id")
-    expr_data.drop(columns=["Name"], inplace=True)
-    return expr_data
-
-
-
-# =========================
-# Pure expression metrics
-# =========================
-def CalculateMeanExpression(expr_data: pd.DataFrame) -> pd.DataFrame:
-    return pd.DataFrame(expr_data.mean(axis=1), columns=["mean_expr"]).reset_index()
-
-
-def CalculateVarianceExpression(expr_data: pd.DataFrame) -> pd.DataFrame:
-    return pd.DataFrame(expr_data.var(axis=1), columns=["expr_variance"]).reset_index()
-
-
-def ExpandToPairs(mean_expr: pd.DataFrame, var_expr: pd.DataFrame, pairs: pd.DataFrame) -> pd.DataFrame:
-    pairs_expr = pd.merge(
-        pairs,
-        mean_expr.rename(columns={"ensembl_id": "A1_ensembl", "mean_expr": "A1_mean_expr"}),
-        how="left",
-    )
-    pairs_expr = pd.merge(
-        pairs_expr,
-        mean_expr.rename(columns={"ensembl_id": "A2_ensembl", "mean_expr": "A2_mean_expr"}),
-        how="left",
-    )
-    pairs_expr = pd.merge(
-        pairs_expr,
-        var_expr.rename(columns={"ensembl_id": "A1_ensembl", "expr_variance": "A1_expr_variance"}),
-        how="left",
-    )
-    pairs_expr = pd.merge(
-        pairs_expr,
-        var_expr.rename(columns={"ensembl_id": "A2_ensembl", "expr_variance": "A2_expr_variance"}),
-        how="left",
-    )
-    return pairs_expr
-
-
-def CalculateExprCorrelation_Fast(pairs: pd.DataFrame, expr_data: pd.DataFrame) -> pd.DataFrame:
-    mean_expr = CalculateMeanExpression(expr_data)
-    var_expr = CalculateVarianceExpression(expr_data)
-    pairs_expr = ExpandToPairs(mean_expr, var_expr, pairs)
-
-    expr_ranks = expr_data.rank(axis=1)
-    expr_dict = expr_ranks.to_dict(orient="index")
-
-    def fast_spearman(pair):
-        A1 = expr_dict.get(pair.A1_ensembl, None)
-        A2 = expr_dict.get(pair.A2_ensembl, None)
-        if A1 is None or A2 is None:
-            return np.nan
-        return np.corrcoef(list(A1.values()), list(A2.values()))[0, 1]
-
-    pairs_expr["spearman_corr"] = pairs_expr.apply(fast_spearman, axis=1)
-    return pairs_expr
-
-
-
-# =========================
-# Clinical orchestration: single GTEx load, per-partner correlation, per-pair split-write
-# =========================
 def build_pairs(combined: pd.DataFrame, partner: str) -> pd.DataFrame:
     assert partner in ("biomarker", "target1")
     col = f"ensembl_gene_id_{partner}"
@@ -153,9 +74,8 @@ def run_query_expression(
         print(f"[OK] {path}  rows={len(sub):,}")
 
 
-
 # =========================
-# Run
+# Run — single GTEx load over the union, per-partner correlation, per-pair split-write
 # =========================
 ensure_dir(CONFIG["feature_dir"])
 

@@ -63,23 +63,35 @@ def build_gene_lookup(hgnc_file: str) -> Dict[str, Dict[str, Optional[str]]]:
         return [x.strip() for x in re.split(r"[|,;]", v) if x.strip()]
 
     lookup: Dict[str, Dict[str, Optional[str]]] = {}
+
+    # Precompute (canonical symbol, prev/alias symbols, id bundle) per HGNC row
+    rows = []
     for _, row in hgnc[cols_needed].iterrows():
         bundle = {
             "hgnc_id": row.get("hgnc_id", np.nan),
             "ensembl_gene_id": row.get("ensembl_gene_id", np.nan),
             "entrez_id": row.get("entrez_id", np.nan),
         }
-        for k in list(bundle.keys()):
-            bundle[k] = None if pd.isna(bundle[k]) else str(bundle[k])
+        bundle = {k: (None if pd.isna(v) else str(v)) for k, v in bundle.items()}
+        canonical = normalize_symbol(row.get("symbol"))
+        prev = [s for s in (normalize_symbol(x) for x in split_multi(row.get("prev_symbol"))) if s]
+        alias = [s for s in (normalize_symbol(x) for x in split_multi(row.get("alias_symbol"))) if s]
+        rows.append((canonical, prev, alias, bundle))
 
-        symbols: List[str] = []
-        symbols += split_multi(row.get("symbol"))
-        symbols += split_multi(row.get("prev_symbol"))
-        symbols += split_multi(row.get("alias_symbol"))
-        for sym in symbols:
-            ns = normalize_symbol(sym)
-            if ns:
-                lookup.setdefault(ns, bundle)
+    # Strict 3-tier precedence: current approved symbol > prev_symbol (former approved
+    # name) > alias_symbol. Canonical never shadowed by another gene's prev/alias
+    # ("ATR" -> ATR kinase, not ANTXR1 alias); a symbol that is a prev of one gene and an
+    # alias of another resolves to the prev gene ("MLL2" = prev of KMT2D, alias of KMT2B
+    # -> KMT2D). Within a tier, first HGNC row wins.
+    for canonical, _prev, _alias, bundle in rows:
+        if canonical:
+            lookup.setdefault(canonical, bundle)
+    for _canonical, prev, _alias, bundle in rows:
+        for ns in prev:
+            lookup.setdefault(ns, bundle)
+    for _canonical, _prev, alias, bundle in rows:
+        for ns in alias:
+            lookup.setdefault(ns, bundle)
     return lookup
 
 
@@ -175,8 +187,9 @@ def build_clinical_main_dataset(
     """
     Build a single combined ML dataset spanning all clinical SL pairs.
 
-    For each (Biomarker, Target) row in pairs_df, stamps the protein-coding gene
-    universe (minus the pair itself) with SL_Pair / Biomarker / Target1 / Target2=None.
+    For each (Biomarker, Target) row in pairs_df, stamps the full protein-coding gene
+    universe (including the biomarker and target themselves) with SL_Pair / Biomarker /
+    Target1 / Target2=None.
     Concatenates into one dataframe, then runs Biomarker/Target column derivation,
     HGNC ID lookup, and placeholder-feature insertion once across the whole frame.
     """
@@ -193,7 +206,10 @@ def build_clinical_main_dataset(
         target1 = str(row["Target"]).strip()
         sl_pair = f"{biomarker}_{target1}"
 
-        sub = base[~base["Query"].isin([biomarker, target1])].copy()
+        # Include the full protein-coding universe, INCLUDING the biomarker and target
+        # themselves: a real CRISPR screen library cannot drop the target/biomarker, so
+        # they appear as query genes in the screens (and in validation, e.g. Knoll).
+        sub = base.copy()
         sub.insert(0, "Screen", screen_label)
         sub.insert(1, "SL_Pair", sl_pair)
         per_pair_frames.append(sub)

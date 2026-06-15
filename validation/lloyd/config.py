@@ -9,7 +9,6 @@ LLOYD          = ROOT / "validation" / "lloyd"
 RAW_DATA       = LLOYD / "raw_data"
 DATA           = LLOYD / "data"
 RESULTS        = LLOYD / "results"
-FEATURE_OUTPUT = LLOYD / "feature_output"
 
 BIOMARKER_GENE = "ATM"
 TARGET1_GENE   = "ATR"
@@ -73,6 +72,15 @@ TRAIN_CSV = (
 # Feature pipeline outputs
 FEATURES_MAIN_SCHEMA_CSV    = DATA / "features_main_schema.csv"
 FEATURES_DROPNA_DEDUP_CSV   = DATA / "features_dropna_dedup.csv"
+
+# Clinical-trials prediction CSV (features + Resistance_Score). Both the features
+# AND the model probability are sourced from here — no local retrain. The clinical
+# ATM_ATR model already excludes ARID1A_ATR (leakage), matching Lloyd's excl rule.
+SCORE_COL         = "Resistance_Score"
+CLINICAL_PRED_CSV = (
+    ROOT / "clinical_trials" / "predictions"
+    / "PredictingSLResistanceFeatures_ATM_ATR_main_withfeatures_pred.csv"
+)
 
 LABEL_ONLY_FEATURE_COLS = [
     "StringInteractionWithBiomarker",

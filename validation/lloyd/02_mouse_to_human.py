@@ -96,10 +96,11 @@ def resolve_gene(
     up = mouse_gene.upper()
     if up in hgnc_approved:
         return up, "HGNC_exact"
-    if up in hgnc_alias:
-        return hgnc_alias[up], "HGNC_alias"
+    # strict 3-tier: prev_symbol (former approved name) beats alias_symbol
     if up in hgnc_prev:
         return hgnc_prev[up], "HGNC_prev"
+    if up in hgnc_alias:
+        return hgnc_alias[up], "HGNC_alias"
     return None, "unmapped"
 
 

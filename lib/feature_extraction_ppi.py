@@ -1,27 +1,35 @@
-"""Shared library — PPI feature extraction.
+"""Shared library — PPI feature extraction CORE (single source of truth).
 
-Computes:
-  - BIOGRID-ALL shared-interactor FET features for biomarker/target1/target2-query
-  - STRING shared-interactor FET features (≥400 threshold for partner set)
-  - STRING combined-score features (no threshold) for biomarker/target1/target2-query
-  - BIOGRID Physical binary existence flags (filtered from BIOGRID-ALL)
-  - Biomarker TSG/oncogene label from the Cancer Gene Census
+This module holds the gene-ID mapping + computation building blocks shared by the
+main pipeline (`07_feature_extraction_ppi_based.py`) and the clinical-trials
+pipeline (`clinical_trials/02_feature_extraction_ppi_based.py`). Each of those
+scripts keeps only its own I/O orchestration (the main pipeline writes one
+combined feature table; clinical writes per-SL_pair files) and imports the
+functions below for the actual computation.
 
-Public entry point: extract_ppi(features_main_schema_csv, feature_output_dir, hgnc_tsv, root)
+Partner symbols (STRING `preferred_name`, BioGRID `Official Symbol`) are resolved
+to HGNC/Ensembl/Entrez IDs through the shared strict 3-tier resolver
+`lib.hgnc_lookup.build_hgnc_lookup` (symbol > prev_symbol > alias, case-insensitive)
+— NOT the old first-win lookup, which mis-mapped alias collisions (e.g. STRING
+"ATR" → ANTXR1).
 
-Refactored from validation/lloyd/scripts/04_extract_features_ppi.py — paths
-become function arguments instead of config imports so multiple validation
-screens can call this without duplication.
+Provides:
+  - classify_biomarker_tsg_oncogene
+  - process_biogrid_ppi_data          (BIOGRID-ALL entrez shared-interactor edges)
+  - compute_ppi_summary_for_pairs     (shared-interactor FET feature)
+  - load_and_map_string_all / build_string_unique_edges / build_string_score_dict
+  - load_and_map_biogrid_physical / build_biogrid_exists_dict
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
+
+from lib.hgnc_lookup import build_hgnc_lookup
 
 STRING_SCORE_THRESHOLD = 400
 
@@ -30,6 +38,30 @@ def normalize_symbol(s: Optional[str]) -> Optional[str]:
     return s.strip().upper() if isinstance(s, str) else None
 
 
+# ----------------------------------------------------------------------------
+# Shared 3-tier symbol -> IDs mapper (replaces the old first-win lookups)
+# ----------------------------------------------------------------------------
+def make_id_mapper(symbols, hgnc_tsv):
+    """Return a function symbol(str) -> (hgnc_id, ensembl_gene_id, entrez_id) built
+    over `symbols` via the strict 3-tier resolver lib.hgnc_lookup.build_hgnc_lookup.
+    Unmapped/blank symbols return (nan, nan, "NA")."""
+    ser = pd.Series(list(symbols)).dropna().astype(str)
+    uniq = [s for s in pd.unique(ser) if s and s.lower() != "nan"]
+    lkp = build_hgnc_lookup(uniq, hgnc_tsv)   # DataFrame indexed by gene
+
+    def ids3(symbol):
+        if isinstance(symbol, str) and symbol in lkp.index:
+            r = lkp.loc[symbol]
+            ent = r["entrez_id"]
+            return (r["hgnc_id"], r["ensembl_gene_id"], ("NA" if pd.isna(ent) else ent))
+        return (np.nan, np.nan, "NA")
+
+    return ids3
+
+
+# ----------------------------------------------------------------------------
+# Cancer Gene Census — biomarker TSG/oncogene label
+# ----------------------------------------------------------------------------
 def classify_biomarker_tsg_oncogene(main_df: pd.DataFrame, census_df: pd.DataFrame) -> pd.DataFrame:
     if "Biomarker" not in main_df.columns:
         raise KeyError("'Biomarker' column not found in MAIN dataset")
@@ -54,6 +86,9 @@ def classify_biomarker_tsg_oncogene(main_df: pd.DataFrame, census_df: pd.DataFra
     return tmp
 
 
+# ----------------------------------------------------------------------------
+# BIOGRID-ALL (Entrez) shared interactors -> FET feature
+# ----------------------------------------------------------------------------
 def process_biogrid_ppi_data(data: pd.DataFrame) -> pd.DataFrame:
     hsapien = 9606
     biogrid_ppi = data[
@@ -132,32 +167,10 @@ def compute_ppi_summary_for_pairs(ppi: pd.DataFrame, gene_pairs: pd.DataFrame) -
     return df
 
 
-def build_hgnc_lookup_firstwin(hgnc_dict) -> Dict[str, Tuple[object, object, str]]:
-    gene_lookup: Dict[str, Tuple[object, object, str]] = {}
-    for entry in hgnc_dict:
-        hgnc_id = entry.get("hgnc_id", np.nan)
-        ensembl_id = entry.get("ensembl_gene_id", np.nan)
-        entrez_id = str(entry.get("entrez_id", "NA")) if pd.notnull(entry.get("entrez_id")) else "NA"
-        syms = []
-        s = normalize_symbol(entry.get("symbol"))
-        if s:
-            syms.append(s)
-        if pd.notnull(entry.get("prev_symbol")):
-            syms.extend(normalize_symbol(x) for x in str(entry["prev_symbol"]).split("|"))
-        if pd.notnull(entry.get("alias_symbol")):
-            syms.extend(normalize_symbol(x) for x in str(entry["alias_symbol"]).split("|"))
-        for sym in syms:
-            if sym and sym not in gene_lookup:
-                gene_lookup[sym] = (hgnc_id, ensembl_id, entrez_id)
-    return gene_lookup
-
-
-def lookup_gene_info_firstwin(gene_lookup, gene_symbol: str) -> Tuple[object, object, str]:
-    key = normalize_symbol(gene_symbol)
-    return gene_lookup.get(key, (np.nan, np.nan, "NA"))
-
-
-def load_and_map_string_all(hgnc_dict, string_links: Path, string_info_path: Path) -> pd.DataFrame:
+# ----------------------------------------------------------------------------
+# STRING: full table (no threshold) for SCORE; >=400 for shared partners
+# ----------------------------------------------------------------------------
+def load_and_map_string_all(string_links, string_info_path, hgnc_tsv) -> pd.DataFrame:
     string_all = pd.read_csv(string_links, sep=" ")
     string_info = pd.read_csv(string_info_path, sep="\t")
     string_all["protein1"] = string_all["protein1"].astype(str).str.replace("9606.", "")
@@ -170,12 +183,15 @@ def load_and_map_string_all(hgnc_dict, string_links: Path, string_info_path: Pat
     string_all = string_all.merge(string_info, left_on="protein2", right_on="#string_protein_id", how="left")
     string_all = string_all.rename(columns={"preferred_name": "gene_symbol_2"}).drop(columns=["#string_protein_id"])
 
-    gene_lookup = build_hgnc_lookup_firstwin(hgnc_dict)
+    ids3 = make_id_mapper(
+        pd.concat([string_all["gene_symbol_1"], string_all["gene_symbol_2"]], ignore_index=True),
+        hgnc_tsv,
+    )
     string_all["hgnc_id_1"], string_all["ensembl_gene_id_1"], string_all["entrez_id_1"] = zip(
-        *string_all["gene_symbol_1"].apply(lambda s: lookup_gene_info_firstwin(gene_lookup, str(s)))
+        *string_all["gene_symbol_1"].astype(str).map(ids3)
     )
     string_all["hgnc_id_2"], string_all["ensembl_gene_id_2"], string_all["entrez_id_2"] = zip(
-        *string_all["gene_symbol_2"].apply(lambda s: lookup_gene_info_firstwin(gene_lookup, str(s)))
+        *string_all["gene_symbol_2"].astype(str).map(ids3)
     )
     return string_all
 
@@ -212,28 +228,10 @@ def build_string_score_dict(string_all: pd.DataFrame) -> Dict[Tuple[object, obje
     return string_dict
 
 
-def build_hgnc_lookup_biogrid_physical_overwrite(hgnc_dict) -> Dict[str, Tuple[object, object]]:
-    gene_lookup: Dict[str, Tuple[object, object]] = {}
-    for entry in hgnc_dict:
-        hgnc_id = entry.get("hgnc_id", np.nan)
-        ensembl_id = entry.get("ensembl_gene_id", np.nan)
-        symbol = normalize_symbol(entry.get("symbol"))
-        if symbol:
-            gene_lookup[symbol] = (hgnc_id, ensembl_id)
-        if pd.notnull(entry.get("prev_symbol")):
-            for prev in str(entry["prev_symbol"]).split("|"):
-                key = normalize_symbol(prev)
-                if key and key not in gene_lookup:
-                    gene_lookup[key] = (hgnc_id, ensembl_id)
-        if pd.notnull(entry.get("alias_symbol")):
-            for alias in str(entry["alias_symbol"]).split("|"):
-                key = normalize_symbol(alias)
-                if key and key not in gene_lookup:
-                    gene_lookup[key] = (hgnc_id, ensembl_id)
-    return gene_lookup
-
-
-def load_and_map_biogrid_physical(hgnc_dict, biogrid_all_tsv: Path) -> pd.DataFrame:
+# ----------------------------------------------------------------------------
+# BIOGRID Physical: official-symbol mapping + existence flags
+# ----------------------------------------------------------------------------
+def load_and_map_biogrid_physical(biogrid_all_tsv, hgnc_tsv) -> pd.DataFrame:
     biogrid = pd.read_csv(biogrid_all_tsv, sep="\t", low_memory=False)
     biogrid = biogrid[
         (biogrid["Experimental System Type"] == "physical")
@@ -248,14 +246,17 @@ def load_and_map_biogrid_physical(hgnc_dict, biogrid_all_tsv: Path) -> pd.DataFr
     biogrid.drop(columns="SortedInteractors", inplace=True)
     biogrid = biogrid.reset_index(drop=True)
 
-    gene_lookup = build_hgnc_lookup_biogrid_physical_overwrite(hgnc_dict)
+    ids3 = make_id_mapper(
+        pd.concat([biogrid["Official Symbol Interactor A"], biogrid["Official Symbol Interactor B"]], ignore_index=True),
+        hgnc_tsv,
+    )
 
-    def lookup(sym: str) -> Tuple[object, object]:
-        key = normalize_symbol(sym)
-        return gene_lookup.get(key, (np.nan, np.nan))
+    def ids2(sym):
+        h, e, _ = ids3(sym)
+        return (h, e)
 
-    biogrid["hgnc_id_1"], biogrid["ensembl_gene_id_1"] = zip(*biogrid["Official Symbol Interactor A"].apply(lookup))
-    biogrid["hgnc_id_2"], biogrid["ensembl_gene_id_2"] = zip(*biogrid["Official Symbol Interactor B"].apply(lookup))
+    biogrid["hgnc_id_1"], biogrid["ensembl_gene_id_1"] = zip(*biogrid["Official Symbol Interactor A"].astype(str).map(ids2))
+    biogrid["hgnc_id_2"], biogrid["ensembl_gene_id_2"] = zip(*biogrid["Official Symbol Interactor B"].astype(str).map(ids2))
     return biogrid
 
 
@@ -263,131 +264,3 @@ def build_biogrid_exists_dict(biogrid: pd.DataFrame) -> Dict[Tuple[object, objec
     d = {(r["ensembl_gene_id_1"], r["ensembl_gene_id_2"]): 1 for _, r in biogrid.iterrows()}
     d.update({(r["ensembl_gene_id_2"], r["ensembl_gene_id_1"]): 1 for _, r in biogrid.iterrows()})
     return d
-
-
-def extract_ppi(features_main_schema_csv: Path, feature_output_dir: Path,
-                hgnc_tsv: Path, root: Path) -> None:
-    features_main_schema_csv = Path(features_main_schema_csv)
-    feature_output_dir = Path(feature_output_dir)
-    hgnc_tsv = Path(hgnc_tsv)
-    root = Path(root)
-
-    BIOGRID_ALL_TSV = root / "input_data" / "BIOGRID" / "BIOGRID-ALL-4.4.241.tab3.txt"
-    STRING_LINKS = root / "input_data" / "STRING" / "9606.protein.links.detailed.v12.0.txt"
-    STRING_INFO = root / "input_data" / "STRING" / "9606.protein.info.v12.0.txt"
-    CANCER_GENE_CENSUS_CSV = root / "input_data" / "Cancer_Gene_Census" / "Cancer_gene_census_data.csv"
-
-    OUT_FET_BIOGRID_BIOMARKER_QUERY = feature_output_dir / "fet_ppi_overlap_biomarker_query.csv"
-    OUT_FET_BIOGRID_TARGET1_QUERY = feature_output_dir / "fet_ppi_overlap_target1_query.csv"
-    OUT_FET_BIOGRID_TARGET2_QUERY = feature_output_dir / "fet_ppi_overlap_target2_query.csv"
-    OUT_FET_STRING_BIOMARKER_QUERY = feature_output_dir / "fet_ppi_overlap_biomarker_query_string.csv"
-    OUT_FET_STRING_TARGET1_QUERY = feature_output_dir / "fet_ppi_overlap_target1_query_string.csv"
-    OUT_FET_STRING_TARGET2_QUERY = feature_output_dir / "fet_ppi_overlap_target2_query_string.csv"
-    OUT_STRING_SCORE_BIOMARKER = feature_output_dir / "string_score_query_biomarker.csv"
-    OUT_STRING_SCORE_TARGET1 = feature_output_dir / "string_score_query_target1.csv"
-    OUT_STRING_SCORE_TARGET2 = feature_output_dir / "string_score_query_target2.csv"
-    OUT_BIOGRID_BIOMARKER_QUERY = feature_output_dir / "biogrid_biomarker_query.csv"
-    OUT_BIOGRID_TARGET_QUERY = feature_output_dir / "biogrid_target_query.csv"
-    OUT_BIOMARKER_TSG_LABEL = feature_output_dir / "biomarker_type.csv"
-
-    feature_output_dir.mkdir(parents=True, exist_ok=True)
-
-    main_csv = pd.read_csv(features_main_schema_csv, low_memory=False)
-    biomarker_query = main_csv[["entrez_id_biomarker", "entrez_id_query"]].rename(
-        columns={"entrez_id_biomarker": "A1_entrez", "entrez_id_query": "A2_entrez"}
-    )
-    target1_query = main_csv[["entrez_id_target1", "entrez_id_query"]].rename(
-        columns={"entrez_id_target1": "A1_entrez", "entrez_id_query": "A2_entrez"}
-    )
-    target2_query = main_csv[["entrez_id_target2", "entrez_id_query"]].rename(
-        columns={"entrez_id_target2": "A1_entrez", "entrez_id_query": "A2_entrez"}
-    )
-
-    biogrid_raw = pd.read_csv(BIOGRID_ALL_TSV, sep="\t", low_memory=False)
-    biogrid_unique = process_biogrid_ppi_data(biogrid_raw)
-    compute_ppi_summary_for_pairs(biogrid_unique, biomarker_query).to_csv(OUT_FET_BIOGRID_BIOMARKER_QUERY, index=False)
-    compute_ppi_summary_for_pairs(biogrid_unique, target1_query).to_csv(OUT_FET_BIOGRID_TARGET1_QUERY, index=False)
-    compute_ppi_summary_for_pairs(biogrid_unique, target2_query).to_csv(OUT_FET_BIOGRID_TARGET2_QUERY, index=False)
-
-    hgnc = pd.read_csv(hgnc_tsv, sep="\t", low_memory=False)
-    hgnc_dict = hgnc[["hgnc_id", "symbol", "prev_symbol", "ensembl_gene_id", "alias_symbol", "entrez_id"]] \
-        .to_dict(orient="records")
-
-    string_all = load_and_map_string_all(hgnc_dict, STRING_LINKS, STRING_INFO)
-    string_score_dict = build_string_score_dict(string_all)
-
-    string_filtered = string_all[string_all["combined_score"] >= STRING_SCORE_THRESHOLD].sort_values(
-        by="combined_score", ascending=False
-    )
-    string_unique = build_string_unique_edges(string_filtered)
-    compute_ppi_summary_for_pairs(string_unique, biomarker_query).to_csv(OUT_FET_STRING_BIOMARKER_QUERY, index=False)
-    compute_ppi_summary_for_pairs(string_unique, target1_query).to_csv(OUT_FET_STRING_TARGET1_QUERY, index=False)
-    compute_ppi_summary_for_pairs(string_unique, target2_query).to_csv(OUT_FET_STRING_TARGET2_QUERY, index=False)
-
-    main_csv2 = pd.read_csv(features_main_schema_csv, low_memory=False)
-
-    def get_score_biomarker(row):
-        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_biomarker"])
-        pair2 = (row["ensembl_gene_id_biomarker"], row["ensembl_gene_id_query"])
-        return string_score_dict.get(pair1) or string_score_dict.get(pair2)
-
-    def get_score_target1(row):
-        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_target1"])
-        pair2 = (row["ensembl_gene_id_target1"], row["ensembl_gene_id_query"])
-        return string_score_dict.get(pair1) or string_score_dict.get(pair2)
-
-    def get_score_target2(row):
-        target2 = row["ensembl_gene_id_target2"]
-        if pd.isna(target2) or target2 == "":
-            return 0
-        pair1 = (row["ensembl_gene_id_query"], target2)
-        pair2 = (target2, row["ensembl_gene_id_query"])
-        return string_score_dict.get(pair1) or string_score_dict.get(pair2) or 0
-
-    main_csv2["StringInteractionWithBiomarker"] = main_csv2.apply(get_score_biomarker, axis=1)
-    main_csv2[["ensembl_gene_id_query", "ensembl_gene_id_biomarker", "StringInteractionWithBiomarker"]].to_csv(OUT_STRING_SCORE_BIOMARKER, index=False)
-
-    main_csv2["StringInteractionWithTarget"] = main_csv2.apply(get_score_target1, axis=1)
-    main_csv2[["ensembl_gene_id_query", "ensembl_gene_id_target1", "StringInteractionWithTarget"]].to_csv(OUT_STRING_SCORE_TARGET1, index=False)
-
-    main_csv2["StringInteractionWithTarget2"] = main_csv2.apply(get_score_target2, axis=1)
-    main_csv2[["ensembl_gene_id_query", "ensembl_gene_id_target2", "StringInteractionWithTarget2"]].to_csv(OUT_STRING_SCORE_TARGET2, index=False)
-
-    main_csv3 = pd.read_csv(features_main_schema_csv, low_memory=False)
-    biogrid_physical = load_and_map_biogrid_physical(hgnc_dict, BIOGRID_ALL_TSV)
-    biogrid_dict = build_biogrid_exists_dict(biogrid_physical)
-
-    def check_bio_biomarker(row):
-        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_biomarker"])
-        pair2 = (row["ensembl_gene_id_biomarker"], row["ensembl_gene_id_query"])
-        return 1 if pair1 in biogrid_dict or pair2 in biogrid_dict else 0
-
-    def check_bio_target1(row):
-        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_target1"])
-        pair2 = (row["ensembl_gene_id_target1"], row["ensembl_gene_id_query"])
-        return 1 if pair1 in biogrid_dict or pair2 in biogrid_dict else 0
-
-    def check_bio_target2(row):
-        pair1 = (row["ensembl_gene_id_query"], row["ensembl_gene_id_target2"])
-        pair2 = (row["ensembl_gene_id_target2"], row["ensembl_gene_id_query"])
-        return 1 if pair1 in biogrid_dict or pair2 in biogrid_dict else 0
-
-    main_csv3["BIOGRIDPhysicalInteractionQueryBiomarker"] = main_csv3.apply(check_bio_biomarker, axis=1)
-    main_csv3["BIOGRIDPhysicalInteractionQueryTarget1"] = main_csv3.apply(check_bio_target1, axis=1)
-    main_csv3["BIOGRIDPhysicalInteractionQueryTarget2"] = main_csv3.apply(check_bio_target2, axis=1)
-    main_csv3["BIOGRIDPhysicalInteractionQueryTarget"] = (
-        main_csv3["BIOGRIDPhysicalInteractionQueryTarget1"] | main_csv3["BIOGRIDPhysicalInteractionQueryTarget2"]
-    ).astype(int)
-
-    main_csv3[["ensembl_gene_id_query", "ensembl_gene_id_biomarker", "BIOGRIDPhysicalInteractionQueryBiomarker"]].to_csv(OUT_BIOGRID_BIOMARKER_QUERY, index=False)
-    main_csv3[["ensembl_gene_id_query", "ensembl_gene_id_target1", "BIOGRIDPhysicalInteractionQueryTarget"]].to_csv(OUT_BIOGRID_TARGET_QUERY, index=False)
-
-    try:
-        cancer_gene_census = pd.read_csv(CANCER_GENE_CENSUS_CSV, low_memory=False)
-        biomarker_type = classify_biomarker_tsg_oncogene(main_csv3, cancer_gene_census)
-        biomarker_type.to_csv(OUT_BIOMARKER_TSG_LABEL, index=False)
-        print("[OK] Biomarker TSG/oncogene labels written:", OUT_BIOMARKER_TSG_LABEL)
-    except FileNotFoundError:
-        print(f"[WARN] Cancer Gene Census file not found: {CANCER_GENE_CENSUS_CSV} (skipping TSG/oncogene labels)")
-
-    print("[OK] Finished. Outputs written to:", feature_output_dir)

@@ -8,8 +8,8 @@ Cite as : []
 
 - [Environment](#environment)
 - [Data processing scripts overview](#data-processing-scripts-overview)
-- [Validation screen analysis](#validation-screen-analysis)
 - [Clinical trial dataset analysis](#clinical-trial-dataset-analysis)
+- [Validation screen analysis](#validation-screen-analysis)
 - [Execution Order](#execution-order)
 - [Data Sources](#data-sources)
 - [Pre-generated Data Files](#pre-generated-data-files)
@@ -45,9 +45,22 @@ See [Execution Order](#execution-order) for how to run these scripts.
 
 The empirical top-k ranking analysis (Fig. 6B) is implemented per validation screen via `lib/topk.py`; run `validation/lloyd/06_run_topk.py` and `validation/knoll/05_run_topk.py`.
 
+## Clinical trial dataset analysis
+
+Clinical-trial biomarker–target validation pipeline applied to PRMT5–MTAP inhibitor candidates. This pipeline runs **before** the validation screens, which source their features and predictions from its output.
+
+| Script | Brief description |
+|--------|-------------------|
+| `clinical_trials/01_ML_data_preprocessing.py` | Preprocess clinical-trial biomarker/target gene table. |
+| `clinical_trials/02_feature_extraction_ppi_based.py` | Extract PPI features for trial pairs. |
+| `clinical_trials/03_feature_extraction_expression_based.py` | Extract expression features. |
+| `clinical_trials/04_feature_extraction_essentiality_based.py` | Extract essentiality features. |
+| `clinical_trials/05_feature_merge.py` | Merge into ML-ready dataset. |
+| `clinical_trials/06_ML.py` | Per-pair RF prediction for trial pairs. Each pair trains its own leakage-excluded RF (drops training screens sharing the pair's biomarker or target) and scores the genome-wide gene set. |
+
 ## Validation screen analysis
 
-Two independent CRISPR resistance screens not seen during training are evaluated against the trained RF model using the shared `lib/` modules. Each validation folder contains screen-specific configuration plus thin runner scripts that invoke shared library functions — no duplicated feature extraction or evaluation code.
+Two independent CRISPR resistance screens not seen during training are evaluated. Each screen parses its own raw data into top-N resistance labels, then **sources both the 18 features and the model probability (`Resistance_Score`) from the matching clinical-trials prediction CSV** (Knoll ← MTAP_PRMT5, Lloyd ← ATM_ATR) — so the clinical-trials pipeline above must be run first. No feature recomputation and no local RF training. Because the clinical and validation runs share the same training matrix, RF hyperparameters, feature order and seed, the sourced scores are identical to a local retrain (Knoll uses the clinical full model; Lloyd uses the clinical ATM_ATR model, which already excludes ARID1A_ATR for leakage). Evaluation is then a pure AUROC/AUPR comparison of raw-data labels against clinical predictions. Each validation folder holds screen-specific configuration plus thin runner scripts that invoke the shared `lib/` evaluation + top-k functions.
 
 | Folder | SL pair | Drug | Cell context | Reference |
 |--------|---------|------|--------------|-----------|
@@ -60,41 +73,28 @@ Two independent CRISPR resistance screens not seen during training are evaluated
 | `02_mouse_to_human.py` | ✓ | — | Mouse → human ortholog mapping via Ensembl BioMart + HGNC fallback. |
 | `02_format_for_ml.py` | — | ✓ | Format labels into 30-column ML schema using HGNC lookup. |
 | `03_format_for_ml.py` | ✓ | — | Format labels into 30-column ML schema using HGNC lookup. |
-| `03_run_features.py` / `04_run_features.py` | 04 | 03 | PPI + expression + essentiality + merge — calls `lib.feature_extraction_*` and `lib.merge_features`. |
-| `04_run_eval.py` / `05_run_eval.py` | 05 | 04 | RF train + ROC/PR (combined + separate) + bootstrap CI — calls `lib.rf_eval.run_screen_eval`. |
-| `05_run_topk.py` / `06_run_topk.py` | 06 | 05 | Top-k prioritization Monte Carlo — calls `lib.topk.run_screen_topk`. |
-| `06_run_panel.py` / `07_run_panel.py` | 07 | 06 | Side-by-side panel: ROC curve (left) + top-k (right). Requires eval + topk JSON first. |
-
-## Clinical trial dataset analysis
-
-Clinical-trial biomarker–target validation pipeline applied to PRMT5–MTAP inhibitor candidates.
-
-| Script | Brief description |
-|--------|-------------------|
-| `clinical_trials/01_ML_data_preprocessing.py` | Preprocess clinical-trial biomarker/target gene table. |
-| `clinical_trials/02_feature_extraction_ppi_based.py` | Extract PPI features for trial pairs. |
-| `clinical_trials/03_feature_extraction_expression_based.py` | Extract expression features. |
-| `clinical_trials/04_feature_extraction_essentiality_based.py` | Extract essentiality features. |
-| `clinical_trials/05_feature_merge.py` | Merge into ML-ready dataset. |
-| `clinical_trials/06_ML.py` | RF prediction for trial pairs. |
+| `03_run_features.py` / `04_run_features.py` | 04 | 03 | Source the 18 features **+ `Resistance_Score`** from the clinical-trials prediction CSV (matched on `hgnc_id_query`), then dropna + dedup. No feature recomputation. |
+| `04_run_eval.py` / `05_run_eval.py` | 05 | 04 | ROC/PR (combined + separate) + bootstrap CI on the clinical-sourced scores — calls `lib.rf_eval.run_screen_eval(score_col=...)`. No RF training. |
+| `05_run_topk.py` / `06_run_topk.py` | 06 | 05 | Top-k prioritization Monte Carlo on the clinical-sourced scores — calls `lib.topk.run_screen_topk(score_col=...)`. No RF training. |
+| `06_run_panel.py` / `07_run_panel.py` | 07 | 06 | Side-by-side panel: ROC curve (left, clinical-sourced score) + top-k (right). Requires eval + topk JSON first. |
 
 ## Shared library (`lib/`)
 
-Single source-of-truth implementation of feature extraction, RF evaluation, and top-k simulation. Imported by both validation screens — no per-screen duplication.
+Single source-of-truth implementation of gene-ID resolution, feature extraction, RF evaluation, and top-k simulation. `lib.hgnc_lookup` (strict 3-tier symbol > prev_symbol > alias, case-insensitive) is the one HGNC resolver used pipeline-wide (main `01`–`06`, clinical `01`, and the validation `format_for_ml` / `mouse_to_human` steps). The PPI, expression, essentiality and feature-combine cores (`lib.feature_extraction_ppi` / `_expression` / `_essentiality` / `merge_features`) are imported by **both** the main pipeline (`07`–`10`) and the clinical-trials pipeline (`clinical_trials/02`–`05`) — each script keeps only its own I/O orchestration (the main pipeline writes one combined table; clinical writes per-SL_pair files). The validation screens import `lib.rf_eval` and `lib.topk` for evaluation/top-k (run in clinical-sourced mode, no training).
 
 | Module | Purpose |
 |--------|---------|
-| `lib/hgnc_lookup.py` | Human gene symbol → HGNC/Entrez/Ensembl resolution (symbol → alias → prev_symbol fallbacks). |
-| `lib/feature_extraction_ppi.py` | STRING + BIOGRID + Cancer Gene Census PPI features. |
-| `lib/feature_extraction_expression.py` | GTEx co-expression + variance + mean expression. |
-| `lib/feature_extraction_essentiality.py` | DepMap co-essentiality + percentage. |
-| `lib/merge_features.py` | Merge all feature outputs → dropna + dedup. |
-| `lib/rf_eval.py` | RandomForest + ROC/PR + bootstrap CI + auto-leakage-exclusion variant. |
+| `lib/hgnc_lookup.py` | Human gene symbol → HGNC/Entrez/Ensembl resolution with strict 3-tier precedence: current `symbol` > `prev_symbol` > `alias_symbol` (a canonical symbol is never shadowed by another gene's previous/alias name). |
+| `lib/feature_extraction_ppi.py` | Shared core: STRING + BIOGRID + Cancer Gene Census PPI features (partner symbols resolved via `lib.hgnc_lookup`). |
+| `lib/feature_extraction_expression.py` | Shared core: GTEx co-expression + variance + mean expression. |
+| `lib/feature_extraction_essentiality.py` | Shared core: DepMap co-essentiality + percentage. |
+| `lib/merge_features.py` | Shared multi-target combine helper (`select_highest_or_available` / `merge_targets`, max-abs across targets). |
+| `lib/rf_eval.py` | ROC/PR + bootstrap CI. Sourced mode (`score_col`) evaluates pre-computed clinical scores. |
 | `lib/topk.py` | Top-k Monte Carlo simulation (global negative sampling). |
 
 ## Execution Order
 
-Run scripts in the order below. Main pipeline is strict (each step reads prior output). Validation and clinical-trials pipelines depend on the main pipeline finishing through `11_ML.py` (which produces the training matrix consumed downstream); they are independent of each other and can be run in any order or in parallel.
+Run scripts in the order below. Main pipeline is strict (each step reads prior output). The clinical-trials pipeline depends on the main pipeline finishing through `11_ML.py` (which produces the training matrix). The validation screens then depend on the clinical-trials pipeline, because they source their features and predictions from its output — so clinical trials must run **before** Lloyd and Knoll. Lloyd and Knoll are independent of each other.
 
 > **Starting point — resistance screen files:** The main pipeline begins with `01_resistance_screen_data_preprocessing.py`, which reads the processed screen files from `input_data/1_resistance_screens/`. These files are already included in the repository (see [Pre-generated Data Files](#pre-generated-data-files)) and can be used directly without any additional steps. Alternatively, if you wish to reproduce the screen files from scratch, each screen has a dedicated raw data analysis script under `input_data/0_raw_data_analysis/<screen>/`. Download the corresponding supplementary files listed in the [Data Sources](#data-sources) section, place them in the appropriate folder, and run the script to regenerate the processed output.
 
@@ -116,7 +116,20 @@ python 10_feature_merge.py
 python 11_ML.py
 ```
 
-### 2. Lloyd validation (ATM–ATR, AZD6738)
+### 2. Clinical trials
+
+```bash
+cd clinical_trials
+python 01_ML_data_preprocessing.py
+python 02_feature_extraction_ppi_based.py
+python 03_feature_extraction_expression_based.py
+python 04_feature_extraction_essentiality_based.py
+python 05_feature_merge.py
+python 06_ML.py
+cd ..
+```
+
+### 3. Lloyd validation (ATM–ATR, AZD6738)
 
 ```bash
 cd validation/lloyd
@@ -130,7 +143,7 @@ python 07_run_panel.py
 cd ../..
 ```
 
-### 3. Knoll validation (MTAP–PRMT5, MRTX1719/MRTX9768)
+### 4. Knoll validation (MTAP–PRMT5, MRTX1719/MRTX9768)
 
 ```bash
 cd validation/knoll
@@ -143,24 +156,12 @@ python 06_run_panel.py
 cd ../..
 ```
 
-### 4. Clinical trials
-
-```bash
-cd clinical_trials
-python 01_ML_data_preprocessing.py
-python 02_feature_extraction_ppi_based.py
-python 03_feature_extraction_expression_based.py
-python 04_feature_extraction_essentiality_based.py
-python 05_feature_merge.py
-python 06_ML.py
-cd ..
-```
-
 ### Dependency notes
 
 - Main `01_` → `11_`: strict order. Each step reads previous output.
-- Each validation screen: strict numbered order `01_` → … → `07_` (Lloyd) or `06_` (Knoll). `run_panel.py` requires both `run_eval.py` and `run_topk.py` to have completed.
-- Lloyd ⊥ Knoll ⊥ clinical_trials → can run in parallel after main `11_ML.py`.
+- Clinical trials: run after main `11_ML.py`; produces the per-pair prediction CSVs the validation screens source from.
+- Each validation screen: strict numbered order `01_` → … → `07_` (Lloyd) or `06_` (Knoll). `run_features.py` requires the matching clinical-trials prediction CSV; `run_panel.py` requires both `run_eval.py` and `run_topk.py` to have completed.
+- Order: main `11_ML.py` → clinical trials → (Lloyd, Knoll). Lloyd ⊥ Knoll, so those two can run in parallel once clinical trials finishes.
 
 ## Data Sources
 
@@ -214,7 +215,7 @@ Each file contains genome-wide gene-level resistance annotations derived from pu
 
 ### Clinical trials biomarker–target table (`clinical_trials/biomarker_target_genes.xlsx`)
 
-Defines the 11 synthetic-lethal biomarker–target pairs evaluated in the clinical trials pipeline (e.g., MSH6/WRN, CCNE1/PKMYT1, BRCA1/ATR). Each row specifies a biomarker gene, a primary drug target, and optionally a secondary target. Read by `clinical_trials/01_ML_data_preprocessing.py` as the entry point for the clinical prediction pipeline.
+Defines the 10 synthetic-lethal biomarker–target pairs evaluated in the clinical trials pipeline (e.g., MSH6/WRN, FBXW7/PKMYT1, BRCA1/ATR, MTAP/PRMT5). Each row specifies a biomarker gene, a primary drug target, and optionally a secondary target. Read by `clinical_trials/01_ML_data_preprocessing.py` as the entry point for the clinical prediction pipeline.
 
 ### SL pair analysis configuration files (`input_data/2_outputs_with_hgnc/`)
 

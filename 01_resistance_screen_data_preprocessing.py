@@ -63,60 +63,42 @@ def fix_excel_gene_names(df, col="Gene"):
     return df
 
 # -----------------------------------
-# 2) Build HGNC lookup (symbol → IDs)
+# 2) + 3) Map all *_screen.xlsx files to HGNC IDs
 # -----------------------------------
-hgnc = pd.read_csv(
-    'input_data/HGNC/hgnc_complete_set.txt',
-    sep='\t'
-)
-columns_to_include = ['hgnc_id', 'symbol', 'prev_symbol', 'ensembl_gene_id', 'alias_symbol', 'entrez_id']
-hgnc_dict = hgnc[columns_to_include].to_dict(orient='records')
+# Gene -> HGNC/Ensembl/Entrez resolution uses the SINGLE shared resolver
+# lib.hgnc_lookup.build_hgnc_lookup (strict 3-tier symbol > prev_symbol > alias,
+# case-insensitive) so every pipeline step maps identically.
+from lib.hgnc_lookup import build_hgnc_lookup
 
-gene_lookup = {}
+HGNC_PATH = "input_data/HGNC/hgnc_complete_set.txt"
 
-def normalize_symbol(s):
-    return s.strip().upper() if isinstance(s, str) else None
-
-for entry in hgnc_dict:
-    hgnc_id = entry.get('hgnc_id', np.nan)
-    ensembl_id = entry.get('ensembl_gene_id', np.nan)
-    entrez_id = str(entry.get('entrez_id', 'NA')) if pd.notnull(entry.get('entrez_id')) else 'NA'
-
-    syms = []
-    # primary
-    s = normalize_symbol(entry.get('symbol'))
-    if s: syms.append(s)
-    # previous symbols
-    if pd.notnull(entry.get('prev_symbol')):
-        syms.extend(normalize_symbol(x) for x in entry['prev_symbol'].split('|'))
-    # alias symbols
-    if pd.notnull(entry.get('alias_symbol')):
-        syms.extend(normalize_symbol(x) for x in entry['alias_symbol'].split('|'))
-
-    for sym in syms:
-        if sym and sym not in gene_lookup:
-            gene_lookup[sym] = (hgnc_id, ensembl_id, entrez_id)
-
-def lookup_gene_info(symbol):
-    key = normalize_symbol(symbol)
-    return gene_lookup.get(key, (np.nan, np.nan, 'NA'))
-
-# -----------------------------------
-# 3) Process all *_screen.xlsx files
-# -----------------------------------
 input_dir = "input_data/1_resistance_screens/"
 file_list = glob.glob(os.path.join(input_dir, "*_screen.xlsx"))
 
 output_dir = "input_data/2_outputs_with_hgnc/"
 os.makedirs(output_dir, exist_ok=True)
 
+# Pass A — read + fix Excel-mangled symbols, collect every candidate symbol.
+frames = {}
+candidate_symbols = set()
 for file in file_list:
     df = pd.read_excel(file)
+    df = fix_excel_gene_names(df, col="Gene")          # adds 'Gene_corrected'
+    frames[file] = df
+    candidate_symbols.update(df["Gene_corrected"].dropna().astype(str))
+    candidate_symbols.update(df["Gene"].dropna().astype(str))
 
-    # fix Excel date-mangled symbols -> new column 'Gene_corrected'
-    df = fix_excel_gene_names(df, col="Gene")
+# One shared lookup over the union of all screen symbols.
+lkp = build_hgnc_lookup(candidate_symbols, HGNC_PATH)    # DataFrame indexed by gene
 
-    # lookup with fallback: try corrected, then original if not found
+def lookup_gene_info(symbol):
+    if isinstance(symbol, str) and symbol in lkp.index:
+        r = lkp.loc[symbol]
+        return r["hgnc_id"], r["ensembl_gene_id"], r["entrez_id"]
+    return np.nan, np.nan, "NA"
+
+# Pass B — annotate each screen (try corrected symbol, fall back to original) + save.
+for file, df in frames.items():
     def _lookup_row(row):
         h, e, n = lookup_gene_info(row["Gene_corrected"])
         if pd.isna(h):  # fallback to original symbol
@@ -125,7 +107,6 @@ for file in file_list:
 
     df[["hgnc_id", "ensembl_gene_id", "entrez_id"]] = df.apply(_lookup_row, axis=1)
 
-    # save CSV
     out_file = os.path.join(
         output_dir,
         os.path.basename(file).replace(".xlsx", "_with_hgnc.csv")

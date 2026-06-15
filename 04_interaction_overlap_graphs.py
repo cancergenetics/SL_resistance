@@ -273,8 +273,8 @@ SCREEN_CONFIG = [
                               'biogrid_count': 'dunn_PTEN_AKT_biogrid_count.csv'},
     {'label': 'PTEN-PIK3CB', 'string_count': 'dunn_PTEN_PIK3CB_string_count.csv',
                               'biogrid_count': 'dunn_PTEN_PIK3CB_biogrid_count.csv'},
-    {'label': 'ARID1A-ATR',  'string_count': 'Llorca_ARID1A_ATR_string_count.csv',
-                              'biogrid_count': 'Llorca_ARID1A_ATR_biogrid_count.csv'},
+    {'label': 'ARID1A-ATR',  'string_count': 'llorca_ARID1A_ATR_string_count.csv',
+                              'biogrid_count': 'llorca_ARID1A_ATR_biogrid_count.csv'},
     {'label': 'KRAS-MEK',    'string_count': 'KRAS_MEK_Krall_Wang_aggregated_string_count.csv',
                               'biogrid_count': 'KRAS_MEK_Krall_Wang_aggregated_biogrid_count.csv'},
     {'label': 'BRCA1-PARP1', 'string_count': 'BRCA1_PARP1_Dev_Noordermeer_aggregated_string_count.csv',
@@ -315,7 +315,7 @@ plot_paired_bars(
     ytick_fontsize=22,
     annotation_fontsize=20,
     legend_fontsize=24,
-    ylim_max=40,
+    ylim_max=50,
     x_rotation=45,
 )
 
@@ -360,7 +360,7 @@ plot_paired_bars(
 ALL_STRING_RESULTS = [
     STRING_RESULTS_DIR / 'dunn_PTEN_PIK3CB_string_results.csv',
     STRING_RESULTS_DIR / 'dunn_PTEN_AKT_string_results.csv',
-    STRING_RESULTS_DIR / 'Llorca_ARID1A_ATR_string_results.csv',
+    STRING_RESULTS_DIR / 'llorca_ARID1A_ATR_string_results.csv',
     STRING_RESULTS_DIR / 'KRAS_MEK_Krall_Wang_aggregated_string_results.csv',
     STRING_RESULTS_DIR / 'BRCA1_PARP1_Dev_Noordermeer_aggregated_string_results.csv',
     STRING_RESULTS_DIR / 'NRAS_MEK_Hayes_Krall_aggregated_string_results.csv',
@@ -374,7 +374,7 @@ ALL_STRING_RESULTS = [
 ALL_BIOGRID_RESULTS = [
     BIOGRID_RESULTS_DIR / 'dunn_PTEN_PIK3CB_biogrid_results.csv',
     BIOGRID_RESULTS_DIR / 'dunn_PTEN_AKT_biogrid_results.csv',
-    BIOGRID_RESULTS_DIR / 'Llorca_ARID1A_ATR_biogrid_results.csv',
+    BIOGRID_RESULTS_DIR / 'llorca_ARID1A_ATR_biogrid_results.csv',
     BIOGRID_RESULTS_DIR / 'KRAS_MEK_Krall_Wang_aggregated_biogrid_results.csv',
     BIOGRID_RESULTS_DIR / 'BRCA1_PARP1_Dev_Noordermeer_aggregated_biogrid_results.csv',
     BIOGRID_RESULTS_DIR / 'NRAS_MEK_Hayes_Krall_aggregated_biogrid_results.csv',
@@ -438,7 +438,7 @@ SUBGROUPS = {
     },
     'exc_mek': {
         'description': 'Excluding MEK inhibitor screens',
-        'indices': [0, 1, 2, 4, 6, 7, 8, 9],
+        'indices': [0, 1, 2, 4, 6, 8, 9],   # drop all 3 MEK-target screens: 3 KRAS-MEK, 5 NRAS-MEK, 7 BRAF-MEK
         'ylabel': '% protein interaction partners',
         'filename': 'supplementary_fig_2_exc_mek.jpeg',
     },

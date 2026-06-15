@@ -4,10 +4,15 @@ Simulates clinical scenario: patient with biomarker-deficient background develop
 resistance; N mutated genes found in tumor; can the model rank the causal
 resistance gene into the top-k?
 
+Scores come either from a pre-computed clinical prediction column (`score_col`
+set — no RF trained) or, in legacy mode (`score_col=None`), from a RandomForest
+trained on `train_csv` (optionally excluding `excl_sl_pair` for leakage).
+
 Public entry point:
   run_screen_topk(train_csv, val_features_csv, labels_csv, screen_name,
                    out_stem, out_json, feature_cols, target_col, rf_kw,
-                   n_list, k_list, n_trials, seed, plot_title)
+                   n_list, k_list, n_trials, seed, excl_sl_pair, colors,
+                   score_col=None)
 """
 
 from __future__ import annotations
@@ -150,6 +155,7 @@ def run_screen_topk(
     seed: int = DEFAULT_SEED,
     excl_sl_pair: str = None,
     colors: dict = None,
+    score_col: str = None,
 ) -> dict:
     n_list = n_list or DEFAULT_N_LIST
     k_list = k_list or DEFAULT_K_LIST
@@ -158,22 +164,31 @@ def run_screen_topk(
     out_stem.parent.mkdir(parents=True, exist_ok=True)
 
     print("Loading data …")
-    train = pd.read_csv(train_csv, low_memory=False)
-    if excl_sl_pair:
-        n_before = len(train)
-        train = train[train["SL_Pair"] != excl_sl_pair].reset_index(drop=True)
-        print(f"  excluded {excl_sl_pair}: {n_before} → {len(train)} rows")
     val_base = pd.read_csv(val_features_csv, low_memory=False)
-
     val = relabel(val_base, labels_csv, target_col)
     n_pos = int(val[target_col].sum())
     n_neg = int((val[target_col] == 0).sum())
-    print(f"  train: {train.shape}  val: {val.shape}  pos={n_pos}  neg={n_neg}")
 
-    rf = RandomForestClassifier(**rf_kw)
-    rf.fit(train[feature_cols].values, train[target_col].values)
-    y_prob = rf.predict_proba(val[feature_cols].values)[:, 1]
-    print("  RF scored")
+    if score_col is not None:
+        # Clinical-sourced probabilities — no RF training (identical to local retrain).
+        if score_col not in val.columns:
+            raise ValueError(
+                f"score_col '{score_col}' not in validation features — re-run "
+                f"run_features so it carries the clinical prediction column."
+            )
+        y_prob = val[score_col].astype(float).values
+        print(f"  val: {val.shape}  pos={n_pos}  neg={n_neg}  (clinical-sourced scores)")
+    else:
+        train = pd.read_csv(train_csv, low_memory=False)
+        if excl_sl_pair:
+            n_before = len(train)
+            train = train[train["SL_Pair"] != excl_sl_pair].reset_index(drop=True)
+            print(f"  excluded {excl_sl_pair}: {n_before} → {len(train)} rows")
+        print(f"  train: {train.shape}  val: {val.shape}  pos={n_pos}  neg={n_neg}")
+        rf = RandomForestClassifier(**rf_kw)
+        rf.fit(train[feature_cols].values, train[target_col].values)
+        y_prob = rf.predict_proba(val[feature_cols].values)[:, 1]
+        print("  RF scored")
 
     print(f"  Running top-k simulation (N_TRIALS={n_trials}) …")
     res, err = empirical_hitk_within_biomarker(val, y_prob, target_col,
