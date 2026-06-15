@@ -47,7 +47,7 @@ The empirical top-k ranking analysis (Fig. 6B) is implemented per validation scr
 
 ## Clinical trial dataset analysis
 
-Clinical-trial biomarker–target validation pipeline applied to PRMT5–MTAP inhibitor candidates. This pipeline runs **before** the validation screens, which source their features and predictions from its output.
+Clinical-trial biomarker–target validation pipeline applied 10 SL clinical trial pairs. This pipeline runs **before** the validation screens, which source their features and predictions from its output.
 
 | Script | Brief description |
 |--------|-------------------|
