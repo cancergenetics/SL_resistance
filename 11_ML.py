@@ -216,8 +216,8 @@ box_labels = [
     'Shared Interactors PPI \n(STRING) (Q-T)',
     'Coexpression (Q-B)',
     'Expression (var)',
-    'Coessentiality (Q-B)',
-    'Coessentiality (Q-T)',
+    'Co-essentiality (Q-B)',
+    'Co-essentiality (Q-T)',
     'Essentiality (avg)'
 ]
 
@@ -362,8 +362,8 @@ features_dict = [
     {"name": "CoexpressionWithBiomarker", "label": "Coexpression Q-B", "category": "Expression"},
     {"name": "CoexpressionWithTarget", "label": "Coexpression Q-T","category": "Expression"},
     {"name": "AvgExpression", "label": "Query Gene Expression (avg)","category": "Expression"},
-    {"name": "CoessentialityWithBiomarker", "label": "Coeesentialty Q-B","category": "Essentiality"},
-    {"name": "CoessentialityWithTarget", "label": "Coeesentialty Q-T","category": "Essentiality"},
+    {"name": "CoessentialityWithBiomarker", "label": "Co-essentiality Q-B","category": "Essentiality"},
+    {"name": "CoessentialityWithTarget", "label": "Co-essentiality Q-T","category": "Essentiality"},
     {"name": "FET_SharedInteractors_Biomarker_BIOGRID", "label": "Shared PPI of Q-B (BIOGRID)","category": "PPI"},
     {"name": "FET_SharedInteractors_Target_BIOGRID", "label": "Shared PPI of Q-T (BIOGRID)","category": "PPI"},
     {"name": "FET_SharedInteractors_Biomarker_STRING", "label": "Shared PPI of Q-B (STRING)","category": "PPI"},
